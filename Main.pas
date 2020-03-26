@@ -70,6 +70,7 @@ TForm1 = class(TForm)
 private
 { Private declarations }
     Thread1 : TThreadMain;
+    procedure DesativarDataSource(Qry: TADOQuery);
 public
 { Public declarations }
     procedure Consulta;
@@ -94,6 +95,19 @@ begin
   ExecSQLList.Button := Button;
   MyList.Add(ExecSQLList);
 end;
+
+procedure TForm1.DesativarDataSource(Qry: TADOQuery);
+var
+  i: integer;
+  Form: TForm;
+begin
+  Form := TForm(Qry.Owner);
+  for i := 0 to (Form.ComponentCount - 1) do begin
+   if (Form.Components[i] is TDataSource) and (TDataSource(Form.Components[i]).DataSet = Qry)
+     then TDataSource(Form.Components[i]).Enabled := True;
+  end;
+end;
+
 // ------------------- THREAD CONSULTA -------------------- //
 {eventos}
 procedure TThreadMain.Open(Qry: TADOQuery; Button: TButton);
@@ -180,17 +194,14 @@ try
     then Connection.CommitTrans
     else begin
       Qry.Close;
-      Form := TForm(Qry.Owner);
-      for i := 0 to (Form.ComponentCount - 1) do begin
-        if (Form.Components[i] is TDataSource) and (TDataSource(Form.Components[i]).DataSet = Qry)
-          then TDataSource(Form.Components[i]).Enabled := True;
-      end;
+      DesativarDataSource(Qry: TADOQuery; Form: TForm);
       Button.Enabled := True;
     end;//é porque eu cancelei no meio
   finally
     Button.Caption := 'Consultar direto';
  end;
 end;
+
 {Procedimento Generico}
 procedure TThreadMain.WMProcGenerico(Msg: TMsg);
 var
@@ -201,40 +212,6 @@ begin
   Procedimento := Aux^.Procedimento;
   Procedimento;
 end;
-
-procedure TThreadMain.CancelarConsulta;
-begin
-    if EmConsulta then begin
-      Synchronize(
-        Procedure
-        var
-          Qry  : TAdoQuery;
-          Form : TForm;
-          i    : integer;
-        begin
-          try
-            Qry  := TAdoQuery(Self.Connection.DataSets[0]);
-            Form := TForm(Qry.Owner);
-            for i := 0 to (Form.ComponentCount - 1) do begin
-              if (Form.Components[i] is TDataSource) and (TDataSource(Form.Components[i]).DataSet = Qry)
-                then TDataSource(Form.Components[i]).Enabled := False;
-            end;
-            Self.Connection.RollbackTrans;
-          finally
-            EmConsulta := False;
-          end;
-        end
-      );
-    end;
-end;
-
-procedure TThreadMain.Kill;
-begin
-  if EmConsulta
-    then Destroy
-    else Terminate;
-end;
-
 
 procedure TThreadMain.NovaConexao;
 begin
@@ -287,13 +264,52 @@ begin
   Connection.Connected            := True;
 end;
 
+procedure TThreadMain.CancelarConsulta;
+begin
+    if EmConsulta then begin
+      Synchronize(
+        Procedure
+        var
+          Qry  : TAdoQuery;
+          Form : TForm;
+          i    : integer;
+        begin
+          try
+            Qry  := TAdoQuery(Self.Connection.DataSets[0]);
+            Form := TForm(Qry.Owner);
+            for i := 0 to (Form.ComponentCount - 1) do begin
+              if (Form.Components[i] is TDataSource) and (TDataSource(Form.Components[i]).DataSet = Qry)
+                then TDataSource(Form.Components[i]).Enabled := False;
+            end;
+            Self.Connection.RollbackTrans;
+          finally
+            EmConsulta := False;
+          end;
+        end
+      );
+    end;
+end;
+
+procedure TThreadMain.Kill;
+begin
+  if EmConsulta
+    then Destroy
+    else Terminate;
+end;
+
 // ------------------- MAIN -------------------- //
 
 procedure TForm1.Button1Click(Sender: TObject);
 begin
-  if not (Thread1.EmConsulta) and not(Button1.Caption = 'Cancelar')
-    then Thread1.Open(Query1,Button1)
-    else Thread1.CancelarConsulta;
+  if not (Thread1.EmConsulta)
+    then begin
+      Thread1.Open(Query1,Button1);
+      Button1.Caption := 'Cancelar';
+    end
+    else begin
+      Thread1.CancelarConsulta;
+      Button1.Caption := 'Consultar direto';
+    end;
 end;
 
 procedure TForm1.Button2Click(Sender: TObject);
