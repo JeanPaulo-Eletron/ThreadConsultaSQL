@@ -23,7 +23,6 @@ type
     end;
     procedure DesativarDataSource(Qry: TADOQuery);
     procedure AtivarDataSource(Qry:TAdoQuery);
-    procedure RolocarGrid(DS: TDataSource);
   // Coisas para lembrar que eu possa usar no futuro caso seja necessário
   //TProcedureObj = Procedure (Obj: TObject) of object;
   //TThreadState  = set of (csSemFilaRequisicao, csDestruir, csSemNotificacao);
@@ -40,6 +39,7 @@ private
     procedure WMProcGenerico(Msg: TMsg);
     procedure WMOpen(Msg: TMsg);
     procedure PrepararRequisicaoConsulta(Qry: TADOQuery;Button: TButton);
+    procedure RolocarGrid(DS: TDataSource);
 protected
     procedure Execute; override;
 public
@@ -107,7 +107,10 @@ begin
   end;
 end;
 
-procedure RolocarGrid(DS: TDataSource);
+// ------------------- THREAD CONSULTA -------------------- //
+{eventos}
+
+procedure TThreadMain.RolocarGrid(DS: TDataSource);
 var
   i: integer;
   Form: TForm;
@@ -117,12 +120,10 @@ begin
   Form := TForm(Qry.Owner);
   for i := 0 to (Form.ComponentCount - 1) do begin
        if (Form.Components[i] is TDBGrid)  and (TDBGrid(Form.Components[i]).DataSource = Form1.DataSource1)
-         then TDBGrid(Form.Components[i]).DataSource := DS;
+         then TDBGrid(Form.Components[i]).DataSource := DataSource;
   end;
 end;
 
-// ------------------- THREAD CONSULTA -------------------- //
-{eventos}
 procedure TThreadMain.PrepararRequisicaoConsulta(Qry: TADOQuery; Button: TButton);
 var
   ExecSQLList :TSQLList;
