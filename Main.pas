@@ -25,10 +25,10 @@ type
     procedure DesativarDataSource(Qry: TADOQuery);
     procedure AtivarDataSource(Qry:TAdoQuery);
   // Coisas para lembrar que eu possa usar no futuro caso seja necessário
-  //TProcedureObj = Procedure (Obj: TObject) of object;
-  //TThreadState  = set of (csSemFilaRequisicao, csDestruir, csSemNotificacao);
-  //Include(TThreadState, csFreeNotification);
-  //if (csFreeNotification in Instance.FComponentState)
+  // TProcedureObj = Procedure (Obj: TObject) of object;
+  // TThreadState  = set of (csSemFilaRequisicao, csDestruir, csSemNotificacao);
+  // Include(TThreadState, csFreeNotification);
+  // if (csFreeNotification in Instance.FComponentState)
 type
     TThreadMain = class(TThread)
 private
@@ -109,7 +109,6 @@ begin
 end;
 
 // ------------------- THREAD CONSULTA -------------------- //
-{eventos}
 
 procedure TThreadMain.RolocarGrid(DS: TDataSource);
 var
@@ -136,8 +135,7 @@ begin
   if MyList = nil
     then MyList := TList<TSQLList>.Create;
   ExecSQLList.DS     := DS;
-  NovaConexao(DS);
-  ExecSQLList.Qry    := Query;
+  ExecSQLList.Qry    := TAdoQuery(DS.DataSet);
   ExecSQLList.Button := Button;
   MyList.Add(ExecSQLList);
 end;
@@ -169,7 +167,6 @@ var
 Msg : TMsg;
 begin
   FreeOnTerminate := self.Finished;
-  //Rever em caso de falha
   PeekMessage(Msg, 0, WM_USER, WM_USER, PM_NOREMOVE);//remove qualquer mensagem
   while not Terminated do begin
     if GetMessage(Msg, 0, 0, 0) then
@@ -188,32 +185,28 @@ begin
         EmConsulta := false;
       end;
     except
-      Self.Execute;//Caso ocorra um erro tentar executar novamente.
+      Self.Execute;//Caso ocorra um erro tentar executar novamente, descarregando a fila.
     end;
   end;
 end;
-//Queue
-{Consulta}
-{Open}
+
 procedure TThreadMain.WMOpen(Msg: TMsg);
 var
-Qry    : TADOQuery;
 Button : TButton;
 List   : TSQLList;
 Form   : TForm;
 i, Aux : Integer;
 begin
 try
-  Query.Connection := nil;
   Synchronize(
   procedure
   begin
-    Aux   := Integer(Msg.wParam);
     List  := Self.MyList.Last;
+    NovaConexao(List.DS);
+    Aux   := Integer(Msg.wParam);
     Button := List.Button;
-    Qry := List.Qry;
-    Qry.Close;
-    Qry.Connection     := Connection;
+    Query.Close;
+    Query.Connection     := Connection;
     DataSource.Enabled := True;
     Connection.BeginTrans;
     RolocarGrid(List.DS);
@@ -221,13 +214,13 @@ try
   end
   );
   if Aux = 0
-    then Qry.Open
-    else Qry.ExecSQL;
+    then Query.Open
+    else Query.ExecSQL;
   if EmConsulta
     then Connection.CommitTrans
     else begin
-      Qry.Close;
-      AtivarDataSource(Qry);
+      Query.Close;
+      DataSource.Enabled := True;
       Button.Enabled := True;
     end;//é porque eu cancelei no meio
   finally
