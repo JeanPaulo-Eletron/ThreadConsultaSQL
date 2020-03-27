@@ -301,12 +301,10 @@ begin
       Synchronize(
         Procedure
         var
-          Qry  : TAdoQuery;
           Form : TForm;
           i    : integer;
         begin
           try
-            Qry  := TAdoQuery(Self.Connection.DataSets[0]);
             DataSource.Enabled := False;
             Self.Connection.RollbackTrans;
           finally
