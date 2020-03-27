@@ -40,7 +40,7 @@ private
     procedure WMProcGenerico(Msg: TMsg);
     procedure WMOpen(Msg: TMsg);
     procedure PrepararRequisicaoConsulta(DS: TDataSource;Button: TButton);
-    procedure RolocarGrid(DS: TDataSource);
+    procedure RelocarGrid(DS: TDataSource);
 protected
     procedure Execute; override;
 public
@@ -110,7 +110,7 @@ end;
 
 // ------------------- THREAD CONSULTA -------------------- //
 
-procedure TThreadMain.RolocarGrid(DS: TDataSource);
+procedure TThreadMain.RelocarGrid(DS: TDataSource);
 var
   i: integer;
   Form: TForm;
@@ -209,7 +209,7 @@ try
     Query.Connection     := Connection;
     DataSource.Enabled := True;
     Connection.BeginTrans;
-    RolocarGrid(List.DS);
+    RelocarGrid(List.DS);
     Button.Enabled := True;
   end
   );
