@@ -21,12 +21,14 @@ type
     TRecordProcedure = record
       Procedimento : TProcedure;
     end;
+    procedure DesativarDataSource(Qry: TADOQuery);
+    procedure AtivarDataSource(Qry:TAdoQuery);
+    procedure RolocarGrid(DS: TDataSource);
   // Coisas para lembrar que eu possa usar no futuro caso seja necessário
   //TProcedureObj = Procedure (Obj: TObject) of object;
   //TThreadState  = set of (csSemFilaRequisicao, csDestruir, csSemNotificacao);
   //Include(TThreadState, csFreeNotification);
   //if (csFreeNotification in Instance.FComponentState)
-  // será necessário programar a generalização das váriaveis dos eventos
 type
     TThreadMain = class(TThread)
 private
@@ -37,7 +39,7 @@ private
     MyList: TList<TSQLList>;
     procedure WMProcGenerico(Msg: TMsg);
     procedure WMOpen(Msg: TMsg);
-    procedure PrepararRequisicaoConsulta(Qry: TADOQuery; Button: TButton);
+    procedure PrepararRequisicaoConsulta(Qry: TADOQuery;Button: TButton);
 protected
     procedure Execute; override;
 public
@@ -47,7 +49,7 @@ public
     procedure ExecSQL(Qry: TAdoQuery; Button: TButton);
     procedure ProcedimentoGenerico(Procedimento: TProcedure; Button: TButton);
     procedure CancelarConsulta;
-    procedure NovaConexao;
+    procedure NovaConexao(Qry: TADOQuery);
     procedure Kill;
 end;
 
@@ -70,7 +72,6 @@ TForm1 = class(TForm)
 private
 { Private declarations }
     Thread1 : TThreadMain;
-    procedure DesativarDataSource(Qry: TADOQuery);
 public
 { Public declarations }
     procedure Consulta;
@@ -81,22 +82,20 @@ implementation
 
 {$R *.DFM}
 // ------------------- FUNÇÕES GLOBAIS -------------------- //
-procedure TThreadMain.PrepararRequisicaoConsulta(Qry: TADOQuery; Button: TButton);
+
+procedure DesativarDataSource(Qry: TADOQuery);
 var
-  ExecSQLList :TSQLList;
+  i: integer;
+  Form: TForm;
 begin
-  if (NaoPermitirFilaRequisicao and EmConsulta)or( Button.Caption = 'Cancelar')
-    then exit;
-  Button.Enabled := False;
-  Button.Caption := 'Cancelar';
-  if MyList = nil
-    then MyList := TList<TSQLList>.Create;
-  ExecSQLList.Qry    := Qry;
-  ExecSQLList.Button := Button;
-  MyList.Add(ExecSQLList);
+  Form := TForm(Qry.Owner);
+  for i := 0 to (Form.ComponentCount - 1) do begin
+   if (Form.Components[i] is TDataSource) and (TDataSource(Form.Components[i]).DataSet = Qry)
+     then TDataSource(Form.Components[i]).Enabled := False;
+  end;
 end;
 
-procedure TForm1.DesativarDataSource(Qry: TADOQuery);
+procedure AtivarDataSource(Qry: TADOQuery);
 var
   i: integer;
   Form: TForm;
@@ -108,8 +107,38 @@ begin
   end;
 end;
 
+procedure RolocarGrid(DS: TDataSource);
+var
+  i: integer;
+  Form: TForm;
+  Qry:   TAdoQuery;
+begin
+  Qry:= TAdoQuery(DS.DataSet);
+  Form := TForm(Qry.Owner);
+  for i := 0 to (Form.ComponentCount - 1) do begin
+       if (Form.Components[i] is TDBGrid)  and (TDBGrid(Form.Components[i]).DataSource = Form1.DataSource1)
+         then TDBGrid(Form.Components[i]).DataSource := DS;
+  end;
+end;
+
 // ------------------- THREAD CONSULTA -------------------- //
 {eventos}
+procedure TThreadMain.PrepararRequisicaoConsulta(Qry: TADOQuery; Button: TButton);
+var
+  ExecSQLList :TSQLList;
+begin
+  if (NaoPermitirFilaRequisicao and EmConsulta)or( Button.Caption = 'Cancelar')
+    then exit;
+  Button.Enabled := False;
+  Button.Caption := 'Cancelar';
+  if MyList = nil
+    then MyList := TList<TSQLList>.Create;
+  NovaConexao(Qry);
+  ExecSQLList.Qry    := Query;
+  ExecSQLList.Button := Button;
+  MyList.Add(ExecSQLList);
+end;
+
 procedure TThreadMain.Open(Qry: TADOQuery; Button: TButton);
 begin
   PrepararRequisicaoConsulta(Qry, Button);
@@ -172,7 +201,6 @@ Form   : TForm;
 i, Aux : Integer;
 begin
 try
-  NovaConexao;
   Query.Connection := nil;
   Synchronize(
   procedure
@@ -182,8 +210,10 @@ try
     Button := List.Button;
     Qry := List.Qry;
     Qry.Close;
-    Qry.Connection := Connection;
+    Qry.Connection     := Connection;
+    DataSource.Enabled := True;
     Connection.BeginTrans;
+    RolocarGrid(DataSource);
     Button.Enabled := True;
   end
   );
@@ -194,7 +224,7 @@ try
     then Connection.CommitTrans
     else begin
       Qry.Close;
-      DesativarDataSource(Qry: TADOQuery; Form: TForm);
+      AtivarDataSource(Qry);
       Button.Enabled := True;
     end;//é porque eu cancelei no meio
   finally
@@ -213,7 +243,8 @@ begin
   Procedimento;
 end;
 
-procedure TThreadMain.NovaConexao;
+//Criar coerencia para multiplos elementos na tela do connection e data source
+procedure TThreadMain.NovaConexao(Qry: TAdoQuery);
 begin
   if Connection = nil then begin
     Connection                      := TADOConnection.Create(Form1);
@@ -232,26 +263,26 @@ begin
   end;
   if Query = nil then begin
     Query                           := TADOQuery.Create(Form1);
-    Query.AutoCalcFields            := Form1.Query1.AutoCalcFields;
-    Query.CacheSize                 := Form1.Query1.CacheSize;
-    Query.CommandTimeout            := Form1.Query1.CommandTimeout;
-    Query.ConnectionString          := Form1.Query1.ConnectionString;
-    Query.CursorLocation            := Form1.Query1.CursorLocation;
-    Query.CursorType                := Form1.Query1.CursorType;
-    Query.DataSource                := Form1.Query1.DataSource;
-    Query.EnableBCD                 := Form1.Query1.EnableBCD;
-    Query.ExecuteOptions            := Form1.Query1.ExecuteOptions;
-    Query.Filter                    := Form1.Query1.Filter;
-    Query.Filtered                  := Form1.Query1.Filtered;
-    Query.LockType                  := Form1.Query1.LockType;
-    Query.MarshalOptions            := Form1.Query1.MarshalOptions;
-    Query.MaxRecords                := Form1.Query1.MaxRecords;
-    Query.Name                      := 'Thread'+IntToStr(Self.ThreadID)+Form1.Query1.Name;
-    Query.ParamCheck                := Form1.Query1.ParamCheck;
-    Query.Parameters                := Form1.Query1.Parameters;
-    Query.Prepared                  := Form1.Query1.Prepared;
-    Query.SQL                       := Form1.Query1.SQL;
-    Query.Tag                       := Form1.Query1.Tag;
+    Query.AutoCalcFields            := Qry.AutoCalcFields;
+    Query.CacheSize                 := Qry.CacheSize;
+    Query.CommandTimeout            := Qry.CommandTimeout;
+    Query.ConnectionString          := Qry.ConnectionString;
+    Query.CursorLocation            := Qry.CursorLocation;
+    Query.CursorType                := Qry.CursorType;
+    Query.DataSource                := Qry.DataSource;
+    Query.EnableBCD                 := Qry.EnableBCD;
+    Query.ExecuteOptions            := Qry.ExecuteOptions;
+    Query.Filter                    := Qry.Filter;
+    Query.Filtered                  := Qry.Filtered;
+    Query.LockType                  := Qry.LockType;
+    Query.MarshalOptions            := Qry.MarshalOptions;
+    Query.MaxRecords                := Qry.MaxRecords;
+    Query.Name                      := 'Thread'+IntToStr(Self.ThreadID)+Qry.Name;
+    Query.ParamCheck                := Qry.ParamCheck;
+    Query.Parameters                := Qry.Parameters;
+    Query.Prepared                  := Qry.Prepared;
+    Query.SQL                       := Qry.SQL;
+    Query.Tag                       := Qry.Tag;
     Query.Connection                := Connection;
   end;
   if DataSource = nil then begin
@@ -276,11 +307,7 @@ begin
         begin
           try
             Qry  := TAdoQuery(Self.Connection.DataSets[0]);
-            Form := TForm(Qry.Owner);
-            for i := 0 to (Form.ComponentCount - 1) do begin
-              if (Form.Components[i] is TDataSource) and (TDataSource(Form.Components[i]).DataSet = Qry)
-                then TDataSource(Form.Components[i]).Enabled := False;
-            end;
+            DesativarDataSource(Qry);
             Self.Connection.RollbackTrans;
           finally
             EmConsulta := False;
@@ -330,7 +357,7 @@ end;
 procedure TForm1.Consulta;
 begin
   try
-    Thread1.NovaConexao;
+    Thread1.NovaConexao(Form1.Query1);
     Thread1.Query.Connection := Thread1.Connection;
     Thread1.Query.Close;
     Thread1.Connection.Connected := True;
