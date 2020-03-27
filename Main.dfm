@@ -99,7 +99,7 @@ object Form1: TForm1
       'union all'
       'select 5,'#39'W'#39
       '*/')
-    Left = 136
+    Left = 80
     Top = 8
   end
   object ADOConnection1: TADOConnection
@@ -120,7 +120,7 @@ object Form1: TForm1
   end
   object DataSource1: TDataSource
     DataSet = Query1
-    Left = 88
+    Left = 48
     Top = 8
   end
 end
