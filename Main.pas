@@ -167,26 +167,25 @@ var
 Msg : TMsg;
 begin
   FreeOnTerminate := self.Finished;
-  PeekMessage(Msg, 0, WM_USER, WM_USER, PM_NOREMOVE);//remove qualquer mensagem
   while not Terminated do begin
-    if GetMessage(Msg, 0, 0, 0) then
-    EmConsulta := true;
-    try
+    if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then begin
+      EmConsulta := true;
       try
-        case Msg.Message of
-          WM_OPEN:                 WMOpen(Msg);
-          WM_PROCEDIMENTOGENERICO: WMProcGenerico(Msg);
-          WM_DESTROY:              Destroy;
-          WM_NULL:                 exit;
-          WM_TERMINATE:            Terminate;
-          else Continue;
+        try
+          case Msg.Message of
+            WM_OPEN:                 WMOpen(Msg);
+            WM_PROCEDIMENTOGENERICO: WMProcGenerico(Msg);
+            WM_DESTROY:              Destroy;
+            WM_TERMINATE:            Terminate;
+          end;
+        finally
+          EmConsulta := false;
+          PeekMessage(Msg, 0, 0, 0, PM_REMOVE);//remove última mensagem
         end;
-      finally
-        EmConsulta := false;
+      except
+        Self.Execute;//Caso ocorra um erro tentar executar novamente, descarregando a fila.
       end;
-    except
-      Self.Execute;//Caso ocorra um erro tentar executar novamente, descarregando a fila.
-    end;
+    end
   end;
 end;
 
@@ -385,6 +384,7 @@ procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   if not Button3.Visible
     then Form1.Button4Click(Button4);
+  Application.ProcessMessages;
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
