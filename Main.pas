@@ -183,7 +183,7 @@ begin
           PeekMessage(Msg, 0, 0, 0, PM_REMOVE);//remove última mensagem
         end;
       except
-        Self.Execute;//Caso ocorra um erro tentar executar novamente, descarregando a fila.
+        Self.Execute;//Caso ocorra um erro tentar executar novamente.
       end;
     end
   end;
