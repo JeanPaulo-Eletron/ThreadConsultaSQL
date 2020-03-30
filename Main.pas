@@ -63,6 +63,9 @@ TForm1 = class(TForm)
     DataSource1: TDataSource;
     DBGrid1: TDBGrid;
     Button4: TButton;
+    Query2: TADOQuery;
+    ADOConnection2: TADOConnection;
+    DataSource2: TDataSource;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure Button1Click(Sender: TObject);
@@ -200,7 +203,7 @@ try
   Synchronize(
   procedure
   begin
-    List  := Self.MyList.Last;
+    List  := Self.MyList.First;//*** Ele tem que pegar a primeira colocada, pois é a primeira a ser executada ***
     NovaConexao(List.DS);
     Aux   := Integer(Msg.wParam);
     Button := List.Button;
@@ -224,6 +227,7 @@ try
     end;//é porque eu cancelei no meio
   finally
     Button.Caption := 'Consultar direto';
+    MyList.Remove(List);
  end;
 end;
 
@@ -338,7 +342,7 @@ end;
 
 procedure TForm1.Button2Click(Sender: TObject);
 begin
-  Thread1.ExecSQL(DataSource1, Button2);
+  Thread1.ExecSQL(DataSource2, Button2);
 end;
 
 procedure TForm1.Button3Click(Sender: TObject);
