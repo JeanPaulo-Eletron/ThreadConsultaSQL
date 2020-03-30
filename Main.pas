@@ -42,6 +42,7 @@ private
     procedure PrepararRequisicaoConsulta(DS: TDataSource;Button: TButton);
     procedure RelocarGrid(DS: TDataSource);
 protected
+    Rest : Integer;
     procedure Execute; override;
 public
     EmConsulta: boolean;
@@ -172,6 +173,7 @@ begin
   FreeOnTerminate := self.Finished;
   while not Terminated do begin
     if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then begin
+      Sleep(Rest+1);
       EmConsulta := true;
       try
         try
