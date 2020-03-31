@@ -24,11 +24,6 @@ type
     end;
     procedure DesativarDataSource(Qry: TADOQuery);
     procedure AtivarDataSource(Qry:TAdoQuery);
-  // Coisas para lembrar que eu possa usar no futuro caso seja necessário
-  // TProcedureObj = Procedure (Obj: TObject) of object;
-  // TThreadState  = set of (csSemFilaRequisicao, csDestruir, csSemNotificacao);
-  // Include(TThreadState, csFreeNotification);
-  // if (csFreeNotification in Instance.FComponentState)
 type
     TThreadMain = class(TThread)
 private
@@ -170,10 +165,11 @@ procedure TThreadMain.Execute;
 var
 Msg : TMsg;
 begin
+  Rest := 10;
   FreeOnTerminate := self.Finished;
   while not Terminated do begin
     if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then begin
-      Sleep(Rest+1);
+      Sleep(Rest);
       EmConsulta := true;
       try
         try
