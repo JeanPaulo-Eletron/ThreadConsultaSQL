@@ -271,8 +271,8 @@ var
   ConnectionAux: TADOConnection;
 begin
   Qry := TAdoQuery(DS.DataSet);
-  Connection := Qry.Connection;
-  if Connection = nil then begin
+  ConnectionAux := Qry.Connection;
+  if ConnectionAux <> nil then begin
     Connection                      := TADOConnection.Create(Form1);
     Connection.ConnectionString     := ConnectionAux.ConnectionString;
     Connection.ConnectionTimeout    := ConnectionAux.ConnectionTimeout;
@@ -287,7 +287,7 @@ begin
     Connection.Provider             := ConnectionAux.Provider;
     Connection.Tag                  := ConnectionAux.Tag;
   end;
-  if Query = nil then begin
+  if Qry <> nil then begin
     Query                           := TADOQuery.Create(Form1);
     Query.AutoCalcFields            := Qry.AutoCalcFields;
     Query.CacheSize                 := Qry.CacheSize;
@@ -311,7 +311,7 @@ begin
     Query.Tag                       := Qry.Tag;
     Query.Connection                := Connection;
   end;
-  if DataSource = nil then begin
+  if DS <> nil then begin
     DataSource                      := TDataSource.Create(Form1);
     DataSource.AutoEdit             := DS.AutoEdit;
     DataSource.DataSet              := TDataSet(Query);
@@ -370,7 +370,7 @@ end;
 
 procedure TForm1.Button3Click(Sender: TObject);
 begin
-  Thread1.ProcedimentoGenericoAssync(Consulta, Button3);
+  Thread1.ProcedimentoGenerico(Consulta, Button3);
 end;
 
 procedure TForm1.Button4Click(Sender: TObject);
