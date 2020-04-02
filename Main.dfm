@@ -44,7 +44,7 @@ object Form1: TForm1
     OnClick = Button2Click
   end
   object Button3: TButton
-    Left = 512
+    Left = 504
     Top = 24
     Width = 75
     Height = 25
