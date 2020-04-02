@@ -370,7 +370,7 @@ end;
 
 procedure TForm1.Button3Click(Sender: TObject);
 begin
-  Thread1.ProcedimentoGenerico(Consulta, Button3);
+  Thread1.ProcedimentoGenericoAssync(Consulta, Button3);
 end;
 
 procedure TForm1.Button4Click(Sender: TObject);
