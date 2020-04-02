@@ -1,0 +1,10 @@
+3.0
+-- Incluido ProcedureGenericaAssincrona
+-- Incluido Triggers
+>>>>>>> Possivelmente 4.0
+-- Incluido EncadeiamentoCondicionalUnitário ( Se ... Então Procedure1 Senão Procedure2 )
+-- Incluido EncadeiamentoCondicionalMultiplo ( O anterior permitindo colocar mais de uma procedure a serem executadas assincronamente 
+                                               se condição verdadeira ou falsa, porém ela espera todos os procedimentos associados aquela 
+                                               chamada acabarem antes de continuar, para passar mais de uma procedure por vez é usado
+                                               um array ou list de Procedures)
+
