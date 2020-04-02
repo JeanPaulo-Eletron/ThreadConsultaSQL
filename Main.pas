@@ -9,9 +9,10 @@ uses
     System.Rtti, System.TypInfo, Generics.Collections;
 
 const
-    WM_OPEN                 = WM_USER + 1;
-    WM_PROCEDIMENTOGENERICO = WM_USER + 2;
-    WM_TERMINATE            = WM_USER + 3;
+    WM_OPEN                       = WM_USER + 1;
+    WM_PROCEDIMENTOGENERICO       = WM_USER + 2;
+    WM_PROCEDIMENTOGENERICOASSYNC = WM_USER + 3;
+    WM_TERMINATE                  = WM_USER + 4;
 type
     TProcedure        = Procedure of object;
     TSQLList          = record
@@ -34,6 +35,7 @@ private
     MyList: TList<TSQLList>;
     procedure WMProcGenerico(Msg: TMsg);
     procedure WMOpen(Msg: TMsg);
+    procedure WMProcGenericoAssync(Msg: TMsg);
     procedure PrepararRequisicaoConsulta(DS: TDataSource;Button: TButton);
     procedure RelocarGrid(DS: TDataSource);
 protected
@@ -45,6 +47,7 @@ public
     procedure Open(DS: TDataSource; Button: TButton);
     procedure ExecSQL(DS: TDataSource; Button: TButton);
     procedure ProcedimentoGenerico(Procedimento: TProcedure; Button: TButton);
+    procedure ProcedimentoGenericoAssync(Procedimento: TProcedure; Button: TButton);
     procedure CancelarConsulta;
     procedure NovaConexao(DS: TDataSource);
     procedure Kill;
@@ -157,7 +160,18 @@ begin
     then exit;
   Button.Enabled := False;
   Self.RecordProcedure.Procedimento := Procedimento;
+  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, Integer(@Self.RecordProcedure), 0);
+end;
+
+procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProcedure;
+  Button: TButton);
+begin
+  if NaoPermitirFilaRequisicao and EmConsulta
+    then exit;
+  Button.Enabled := False;
+  Self.RecordProcedure.Procedimento := Procedimento;
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICO, Integer(@Self.RecordProcedure), 0);
+
 end;
 
 {inicio}
@@ -176,6 +190,7 @@ begin
           case Msg.Message of
             WM_OPEN:                 WMOpen(Msg);
             WM_PROCEDIMENTOGENERICO: WMProcGenerico(Msg);
+            WM_PROCEDIMENTOGENERICOASSYNC: WMProcGenericoAssync(Msg);
             WM_DESTROY:              Destroy;
             WM_TERMINATE:            Terminate;
           end;
@@ -238,6 +253,16 @@ begin
   Aux := Pointer(Msg.wParam);
   Procedimento := Aux^.Procedimento;
   Procedimento;
+end;
+
+procedure TThreadMain.WMProcGenericoAssync(Msg: TMsg);
+var
+  Aux: ^TRecordProcedure;
+  Procedimento: TProcedure;
+begin
+  Aux := Pointer(Msg.wParam);
+  Procedimento := Aux^.Procedimento;
+  CreateAnonymousThread(Procedimento);
 end;
 
 procedure TThreadMain.NovaConexao(DS: TDataSource);
