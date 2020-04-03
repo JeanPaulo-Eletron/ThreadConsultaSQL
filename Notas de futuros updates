@@ -1,7 +1,8 @@
 3.0
--- Incluido ProcedureGenericaAssincrona
-  2.75 -->> incluir variavel para cuidar da hora de fechar dar destroy.
--- Incluido Triggers
+funciona como um timer já que tem um sleep mandando conferir a condição de tempos em tempos(em ambos os casos em paralelo), 
+                               se passar lança as procedures cadastradas em ordem(pelo método Subscribe).
+-- Incluido Triggers(Com Quee quando executar)
+-- Incluido TriggersAssync(Executa em paralelo mesmo)
 >>>>>>> Possivelmente 4.0
 -- Incluido EncadeiamentoCondicionalUnitário ( Se ... Então Procedure1 Senão Procedure2 )
 -- Incluido EncadeiamentoCondicionalMultiplo ( O anterior permitindo colocar mais de uma procedure a serem executadas assincronamente 
