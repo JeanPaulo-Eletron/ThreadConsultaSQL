@@ -33,6 +33,7 @@ private
     DataSource: TDataSource;
     NaoPermitirFilaRequisicao: Boolean;
     MyList: TList<TSQLList>;
+    QtdeProcAsssync: Integer;
     procedure WMProcGenerico(Msg: TMsg);
     procedure WMOpen(Msg: TMsg);
     procedure WMProcGenericoAssync(Msg: TMsg);
@@ -160,7 +161,7 @@ begin
     then exit;
   Button.Enabled := False;
   Self.RecordProcedure.Procedimento := Procedimento;
-  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, Integer(@Self.RecordProcedure), 0);
+  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICO, Integer(@Self.RecordProcedure), 0);
 end;
 
 procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProcedure;
@@ -170,7 +171,7 @@ begin
     then exit;
   Button.Enabled := False;
   Self.RecordProcedure.Procedimento := Procedimento;
-  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICO, Integer(@Self.RecordProcedure), 0);
+  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, Integer(@Self.RecordProcedure), 0);
 
 end;
 
@@ -262,7 +263,8 @@ var
 begin
   Aux := Pointer(Msg.wParam);
   Procedimento := Aux^.Procedimento;
-  CreateAnonymousThread(Procedimento);
+  QtdeProcAsssync := QtdeProcAsssync + 1;
+  CreateAnonymousThread(Procedimento).Start;
 end;
 
 procedure TThreadMain.NovaConexao(DS: TDataSource);
@@ -343,7 +345,7 @@ end;
 
 procedure TThreadMain.Kill;
 begin
-  if EmConsulta
+  if (EmConsulta) or (QtdeProcAsssync <> 0)
     then Destroy
     else Terminate;
 end;
@@ -404,6 +406,7 @@ begin
   finally
     Button3.Enabled := True;
     Button3.Visible := True;
+    Thread1.QtdeProcAsssync := Thread1.QtdeProcAsssync - 1;
   end;
 end;
 
