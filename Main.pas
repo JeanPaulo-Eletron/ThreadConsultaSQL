@@ -325,9 +325,11 @@ var
   ConnectionAux: TADOConnection;
 begin
   Qry := TAdoQuery(DS.DataSet);
+
   ConnectionAux := Qry.Connection;
   if ConnectionAux <> nil then begin
-    Connection                      := TADOConnection.Create(Form1);
+    if Connection = nil
+      then Connection               := TADOConnection.Create(Form1);
     Connection.ConnectionString     := ConnectionAux.ConnectionString;
     Connection.ConnectionTimeout    := ConnectionAux.ConnectionTimeout;
     Connection.ConnectOptions       := ConnectionAux.ConnectOptions;
@@ -341,8 +343,9 @@ begin
     Connection.Provider             := ConnectionAux.Provider;
     Connection.Tag                  := ConnectionAux.Tag;
   end;
-  if Qry <> nil then begin
-    Query                           := TADOQuery.Create(Form1);
+  if (Qry <> nil) then begin
+    if Query = nil
+      then Query                    := TADOQuery.Create(Form1);
     Query.AutoCalcFields            := Qry.AutoCalcFields;
     Query.CacheSize                 := Qry.CacheSize;
     Query.CommandTimeout            := Qry.CommandTimeout;
@@ -365,8 +368,9 @@ begin
     Query.Tag                       := Qry.Tag;
     Query.Connection                := Connection;
   end;
-  if DS <> nil then begin
-    DataSource                      := TDataSource.Create(Form1);
+  if (DS <> nil) then begin
+    if DataSource = nil
+      then DataSource                      := TDataSource.Create(Form1);
     DataSource.AutoEdit             := DS.AutoEdit;
     DataSource.DataSet              := TDataSet(Query);
     DataSource.Name                 := 'Thread'+IntToStr(Self.ThreadID)+DS.Name;
