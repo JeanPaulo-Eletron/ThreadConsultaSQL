@@ -9,4 +9,15 @@ funciona como um timer já que tem um sleep mandando conferir a condição de te
                                                se condição verdadeira ou falsa, porém ela espera todos os procedimentos associados aquela 
                                                chamada acabarem antes de continuar, para passar mais de uma procedure por vez é usado
                                                um array ou list de Procedures)
-
+>>>>>>> Possivelmente 5.0
+-- Fazer repositório com a versão C#.
+>>>>>>> Possivelmente 6.0
+-- Fazer repositório com a versão Java.
+>>>>>>> Possivelmente 7.0
+-- Fazer repositório com a versão Phyton.
+>>>>>>> Possivelmente 8.0
+-- Fazer repositório com a versão C++.
+>>>>>>> Possivelmente 9.0
+-- Fazer repositório com a versão JavaScript, TypeScript ou PHP(ou todas).
+>>>>>>> Possivelmente 10.0
+-- Montar DLL para Generalizar todas as funções para qualquer linguagem.
