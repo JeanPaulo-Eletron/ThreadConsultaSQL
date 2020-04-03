@@ -1,5 +1,6 @@
 3.0
 -- Incluido ProcedureGenericaAssincrona
+  2.75 -->> incluir variavel para cuidar da hora de fechar dar destroy.
 -- Incluido Triggers
 >>>>>>> Possivelmente 4.0
 -- Incluido EncadeiamentoCondicionalUnitário ( Se ... Então Procedure1 Senão Procedure2 )
