@@ -52,7 +52,8 @@ public
     procedure ExecSQL(DS: TDataSource; Button: TButton);
     procedure ProcedimentoGenerico(Procedimento: TProcedure; Button: TButton);overload;
     procedure ProcedimentoGenerico(Procedimento: TProc; Button: TButton);overload;
-    procedure ProcedimentoGenericoAssync(Procedimento: TProcedure; Button: TButton);
+    procedure ProcedimentoGenericoAssync(Procedimento: TProcedure; Button: TButton);overload;
+    procedure ProcedimentoGenericoAssync(Procedimento: TProc; Button: TButton);overload;
     procedure CancelarConsulta;
     procedure NovaConexao(DS: TDataSource);
     procedure Kill;
@@ -187,15 +188,30 @@ begin
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICO, 1, 0);
 end;
 
+procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProc;
+  Button: TButton);
+begin
+  if NaoPermitirFilaRequisicao and EmConsulta
+    then exit;
+  if MyListProc = nil
+    then  MyListProc := TList<TRecordProcedure>.Create;
+  Button.Enabled := False;
+  Self.RecordProcedure.RProcedimento := Procedimento;
+  MyListProc.Add(Self.RecordProcedure);
+  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 1, 0);
+end;
+
 procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProcedure;
   Button: TButton);
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
+  if MyListProc = nil
+    then  MyListProc := TList<TRecordProcedure>.Create;
   Button.Enabled := False;
   Self.RecordProcedure.Procedimento := Procedimento;
-  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, Integer(@Self.RecordProcedure), 0);
-
+  MyListProc.Add(Self.RecordProcedure);
+  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 0, 0);
 end;
 
 {inicio}
@@ -288,13 +304,19 @@ end;
 
 procedure TThreadMain.WMProcGenericoAssync(Msg: TMsg);
 var
-  Aux: ^TRecordProcedure;
-  Procedimento: TProcedure;
+  Aux: TRecordProcedure;
+  Procedimento: TProc;
 begin
-  Aux := Pointer(Msg.wParam);
-  Procedimento := Aux^.Procedimento;
-  QtdeProcAsssync := QtdeProcAsssync + 1;
-  CreateAnonymousThread(Procedimento).Start;
+  Aux := MyListProc.First;
+  if Integer(Msg.wParam) = 0
+    then begin
+      CreateAnonymousThread(MyListProc.First.Procedimento).Start;
+    end
+    else begin
+      Procedimento := MyListProc.First.RProcedimento;
+      CreateAnonymousThread(Procedimento).Start;
+    end;
+  MyListProc.Remove(MyListProc.First);
 end;
 
 procedure TThreadMain.NovaConexao(DS: TDataSource);
@@ -418,6 +440,8 @@ begin
               begin
                 while true do begin
                   sleep(1);
+                  if Thread1.Finished
+                    then exit;
                   Thread1.Queue(
                     procedure
                     begin
@@ -426,7 +450,7 @@ begin
                   );
                 end;
               end;
-  Thread1.ProcedimentoGenerico(Proc, TButton(Sender));
+  Thread1.ProcedimentoGenericoAssync(Proc, TButton(Sender));
 end;
 
 procedure TForm1.Consulta;
