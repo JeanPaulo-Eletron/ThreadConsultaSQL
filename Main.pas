@@ -15,6 +15,7 @@ const
     WM_TERMINATE                  = WM_USER + 4;
 type
     TProcedure        = Procedure of object;
+    TRProcedure       = reference to procedure;
     TSQLList          = record
       Qry: TADOQuery;
       Button: TButton;
@@ -22,6 +23,7 @@ type
     end;
     TRecordProcedure = record
       Procedimento : TProcedure;
+      RProcedimento : TProc;
     end;
     procedure DesativarDataSource(Qry: TADOQuery);
     procedure AtivarDataSource(Qry:TAdoQuery);
@@ -32,8 +34,9 @@ private
     Query: TADOQuery;
     DataSource: TDataSource;
     NaoPermitirFilaRequisicao: Boolean;
-    MyList: TList<TSQLList>;
+    MyList:     TList<TSQLList>;
     QtdeProcAsssync: Integer;
+    MyListProc: TList<TRecordProcedure>;
     procedure WMProcGenerico(Msg: TMsg);
     procedure WMOpen(Msg: TMsg);
     procedure WMProcGenericoAssync(Msg: TMsg);
@@ -44,10 +47,11 @@ protected
     procedure Execute; override;
 public
     EmConsulta: boolean;
-    RecordProcedure: TRecordProcedure;
+    RecordProcedure:  TRecordProcedure;
     procedure Open(DS: TDataSource; Button: TButton);
     procedure ExecSQL(DS: TDataSource; Button: TButton);
-    procedure ProcedimentoGenerico(Procedimento: TProcedure; Button: TButton);
+    procedure ProcedimentoGenerico(Procedimento: TProcedure; Button: TButton);overload;
+    procedure ProcedimentoGenerico(Procedimento: TProc; Button: TButton);overload;
     procedure ProcedimentoGenericoAssync(Procedimento: TProcedure; Button: TButton);
     procedure CancelarConsulta;
     procedure NovaConexao(DS: TDataSource);
@@ -66,6 +70,8 @@ TForm1 = class(TForm)
     Query2: TADOQuery;
     ADOConnection2: TADOConnection;
     DataSource2: TDataSource;
+    Button5: TButton;
+    lbl1: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure Button1Click(Sender: TObject);
@@ -73,6 +79,7 @@ TForm1 = class(TForm)
     procedure Button3Click(Sender: TObject);
     procedure Button4Click(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure Button5Click(Sender: TObject);
 private
 { Private declarations }
     Thread1 : TThreadMain;
@@ -159,9 +166,25 @@ procedure TThreadMain.ProcedimentoGenerico(Procedimento: TProcedure; Button: TBu
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
+  if MyListProc = nil
+    then  MyListProc := TList<TRecordProcedure>.Create;
   Button.Enabled := False;
   Self.RecordProcedure.Procedimento := Procedimento;
-  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICO, Integer(@Self.RecordProcedure), 0);
+  MyListProc.Add(Self.RecordProcedure);
+  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICO, 0, 0);
+end;
+
+procedure TThreadMain.ProcedimentoGenerico(Procedimento: TProc;
+  Button: TButton);
+begin
+  if NaoPermitirFilaRequisicao and EmConsulta
+    then exit;
+  if MyListProc = nil
+    then  MyListProc := TList<TRecordProcedure>.Create;
+  Button.Enabled := False;
+  Self.RecordProcedure.RProcedimento := Procedimento;
+  MyListProc.Add(Self.RecordProcedure);
+  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICO, 1, 0);
 end;
 
 procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProcedure;
@@ -248,12 +271,19 @@ end;
 {Procedimento Generico}
 procedure TThreadMain.WMProcGenerico(Msg: TMsg);
 var
-  Aux: ^TRecordProcedure;
-  Procedimento: TProcedure;
+  Aux: TRecordProcedure;
+  Procedimento: TProc;
 begin
-  Aux := Pointer(Msg.wParam);
-  Procedimento := Aux^.Procedimento;
-  Procedimento;
+  Aux := MyListProc.First;
+  if Integer(Msg.wParam) = 0
+    then begin
+      MyListProc.First.Procedimento;
+    end
+    else begin
+      Procedimento := MyListProc.First.RProcedimento;
+      Procedimento;
+    end;
+  MyListProc.Remove(MyListProc.First);
 end;
 
 procedure TThreadMain.WMProcGenericoAssync(Msg: TMsg);
@@ -378,6 +408,25 @@ end;
 procedure TForm1.Button4Click(Sender: TObject);
 begin
   Thread1.CancelarConsulta;
+end;
+
+procedure TForm1.Button5Click(Sender: TObject);
+var
+  Proc : TProc;
+begin
+  Proc :=   Procedure
+              begin
+                while true do begin
+                  sleep(1);
+                  Thread1.Queue(
+                    procedure
+                    begin
+                      lbl1.Caption := IntToStr( StrToInt(lbl1.Caption) + 1);
+                    end
+                  );
+                end;
+              end;
+  Thread1.ProcedimentoGenerico(Proc, TButton(Sender));
 end;
 
 procedure TForm1.Consulta;

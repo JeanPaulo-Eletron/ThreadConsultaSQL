@@ -16,9 +16,16 @@ object Form1: TForm1
   OnDestroy = FormDestroy
   PixelsPerInch = 96
   TextHeight = 13
+  object lbl1: TLabel
+    Left = 320
+    Top = 56
+    Width = 6
+    Height = 13
+    Caption = '1'
+  end
   object Button4: TButton
-    Left = 512
-    Top = 24
+    Left = 536
+    Top = 8
     Width = 75
     Height = 25
     Caption = 'Cancelar'
@@ -26,8 +33,8 @@ object Form1: TForm1
     OnClick = Button4Click
   end
   object Button1: TButton
-    Left = 240
-    Top = 24
+    Left = 334
+    Top = 8
     Width = 115
     Height = 25
     Caption = 'Consultar direto'
@@ -35,17 +42,17 @@ object Form1: TForm1
     OnClick = Button1Click
   end
   object Button2: TButton
-    Left = 392
-    Top = 24
+    Left = 455
+    Top = 8
     Width = 75
     Height = 25
-    Caption = 'Button2'
+    Caption = 'Exec'
     TabOrder = 1
     OnClick = Button2Click
   end
   object Button3: TButton
-    Left = 512
-    Top = 24
+    Left = 536
+    Top = 8
     Width = 75
     Height = 25
     Caption = 'Consultar'
@@ -64,6 +71,15 @@ object Form1: TForm1
     TitleFont.Height = -11
     TitleFont.Name = 'Tahoma'
     TitleFont.Style = []
+  end
+  object Button5: TButton
+    Left = 213
+    Top = 8
+    Width = 115
+    Height = 25
+    Caption = 'Contar'
+    TabOrder = 5
+    OnClick = Button5Click
   end
   object Query1: TADOQuery
     Connection = ADOConnection1
