@@ -12,7 +12,9 @@ const
     WM_OPEN                       = WM_USER + 1;
     WM_PROCEDIMENTOGENERICO       = WM_USER + 2;
     WM_PROCEDIMENTOGENERICOASSYNC = WM_USER + 3;
-    WM_TERMINATE                  = WM_USER + 4;
+    WM_TRIGGER                    = WM_USER + 4;
+    WM_TRIGGERASSYNC              = WM_USER + 5;
+    WM_TERMINATE                  = WM_USER + 6;
 type
     TProcedure        = Procedure of object;
     TRProcedure       = reference to procedure;
@@ -40,6 +42,7 @@ private
     procedure WMProcGenerico(Msg: TMsg);
     procedure WMOpen(Msg: TMsg);
     procedure WMProcGenericoAssync(Msg: TMsg);
+    procedure WMTRIGGER(Msg: TMsg);
     procedure PrepararRequisicaoConsulta(DS: TDataSource;Button: TButton);
     procedure RelocarGrid(DS: TDataSource);
 protected
@@ -50,6 +53,7 @@ public
     RecordProcedure:  TRecordProcedure;
     procedure Open(DS: TDataSource; Button: TButton);
     procedure ExecSQL(DS: TDataSource; Button: TButton);
+    procedure Trigger(Rest: NativeUInt; Procedimento: TProc);
     procedure ProcedimentoGenerico(Procedimento: TProcedure; Button: TButton);overload;
     procedure ProcedimentoGenerico(Procedimento: TProc; Button: TButton);overload;
     procedure ProcedimentoGenericoAssync(Procedimento: TProcedure; Button: TButton);overload;
@@ -73,6 +77,7 @@ TForm1 = class(TForm)
     DataSource2: TDataSource;
     Button5: TButton;
     lbl1: TLabel;
+    Button6: TButton;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure Button1Click(Sender: TObject);
@@ -81,6 +86,7 @@ TForm1 = class(TForm)
     procedure Button4Click(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure Button5Click(Sender: TObject);
+    procedure Button6Click(Sender: TObject);
 private
 { Private declarations }
     Thread1 : TThreadMain;
@@ -212,6 +218,17 @@ begin
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 0, 0);
 end;
 
+procedure TThreadMain.Trigger(Rest: NativeUInt; Procedimento: TProc);
+begin
+  if NaoPermitirFilaRequisicao and EmConsulta
+    then exit;
+  if MyListProc = nil
+    then  MyListProc := TList<TRecordProcedure>.Create;
+  Self.RecordProcedure.RProcedimento := Procedimento;
+  MyListProc.Add(Self.RecordProcedure);
+  PostThreadMessage(ThreadID, WM_TRIGGER, Rest, 0);
+end;
+
 {inicio}
 procedure TThreadMain.Execute;
 var
@@ -229,6 +246,7 @@ begin
             WM_OPEN:                       WMOpen(Msg);
             WM_PROCEDIMENTOGENERICO:       WMProcGenerico(Msg);
             WM_PROCEDIMENTOGENERICOASSYNC: WMProcGenericoAssync(Msg);
+            WM_TRIGGER:                    WMTRIGGER(Msg);
             WM_DESTROY:                    Destroy;
             WM_TERMINATE:                  Terminate;
           end;
@@ -285,10 +303,8 @@ end;
 {Procedimento Generico}
 procedure TThreadMain.WMProcGenerico(Msg: TMsg);
 var
-  Aux: TRecordProcedure;
   Procedimento: TProc;
 begin
-  Aux := MyListProc.First;
   if Integer(Msg.wParam) = 0
     then begin
       MyListProc.First.Procedimento;
@@ -403,6 +419,28 @@ begin
     else Terminate;
 end;
 
+procedure TThreadMain.WMTRIGGER(Msg: TMsg);
+var
+  Aux: TRecordProcedure;
+  Procedimento: TProc;
+begin
+  Procedimento := MyListProc.First.RProcedimento;
+  ProcedimentoGenericoAssync(
+          Procedure
+          var
+            Rest: NativeUInt;
+          begin
+            Rest := Msg.wParam;
+            while true do begin
+              Sleep(Rest);
+              if Finished
+                then exit;
+              Queue(TThreadProcedure(Procedimento));
+            end;
+          end, TButton(Form1.Button6));
+  MyListProc.Delete(0);
+end;
+
 // ------------------- MAIN -------------------- //
 
 procedure TForm1.Button1Click(Sender: TObject);
@@ -436,24 +474,33 @@ begin
 end;
 
 procedure TForm1.Button5Click(Sender: TObject);
-var
-  Proc : TProc;
 begin
-  Proc :=   Procedure
+  Thread1.ProcedimentoGenericoAssync(
+              Procedure
               begin
                 while true do begin
                   sleep(1);
                   if Thread1.Finished
                     then exit;
                   Thread1.Queue(
-                    procedure
-                    begin
-                      lbl1.Caption := IntToStr( StrToInt(lbl1.Caption) + 1);
-                    end
-                  );
+                  procedure
+                  begin
+                    form1.lbl1.Caption := IntToStr( StrToInt(form1.lbl1.Caption) + 1);
+                  end);
                 end;
-              end;
-  Thread1.ProcedimentoGenericoAssync(Proc, TButton(Sender));
+              end, TButton(Sender));
+end;
+
+procedure TForm1.Button6Click(Sender: TObject);
+begin
+  Thread1.Trigger(100,
+  procedure
+  begin
+    if StrToInt(Form1.lbl1.Caption) > 2000
+      then
+    Form1.lbl1.Caption := '0';
+  end
+  );
 end;
 
 procedure TForm1.Consulta;

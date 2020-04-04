@@ -81,6 +81,15 @@ object Form1: TForm1
     TabOrder = 5
     OnClick = Button5Click
   end
+  object Button6: TButton
+    Left = 213
+    Top = 55
+    Width = 115
+    Height = 25
+    Caption = 'Contar'
+    TabOrder = 6
+    OnClick = Button6Click
+  end
   object Query1: TADOQuery
     Connection = ADOConnection1
     CursorType = ctStatic
