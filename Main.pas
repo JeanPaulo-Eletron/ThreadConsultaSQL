@@ -175,8 +175,7 @@ begin
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICO, 0, 0);
 end;
 
-procedure TThreadMain.ProcedimentoGenerico(Procedimento: TProc;
-  Button: TButton);
+procedure TThreadMain.ProcedimentoGenerico(Procedimento: TProc; Button: TButton);
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
@@ -188,8 +187,7 @@ begin
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICO, 1, 0);
 end;
 
-procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProc;
-  Button: TButton);
+procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProc; Button: TButton);
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
@@ -228,11 +226,11 @@ begin
       try
         try
           case Msg.Message of
-            WM_OPEN:                 WMOpen(Msg);
-            WM_PROCEDIMENTOGENERICO: WMProcGenerico(Msg);
+            WM_OPEN:                       WMOpen(Msg);
+            WM_PROCEDIMENTOGENERICO:       WMProcGenerico(Msg);
             WM_PROCEDIMENTOGENERICOASSYNC: WMProcGenericoAssync(Msg);
-            WM_DESTROY:              Destroy;
-            WM_TERMINATE:            Terminate;
+            WM_DESTROY:                    Destroy;
+            WM_TERMINATE:                  Terminate;
           end;
         finally
           EmConsulta := false;
@@ -325,7 +323,6 @@ var
   ConnectionAux: TADOConnection;
 begin
   Qry := TAdoQuery(DS.DataSet);
-
   ConnectionAux := Qry.Connection;
   if ConnectionAux <> nil then begin
     if Connection = nil
@@ -411,10 +408,7 @@ end;
 procedure TForm1.Button1Click(Sender: TObject);
 begin
   if not (Thread1.EmConsulta)
-    then begin
-      Thread1.Open(DataSource1,Button1);
-      Button1.Caption := 'Cancelar';
-    end
+    then Thread1.Open(DataSource1,Button1)
     else begin
       Thread1.CancelarConsulta;
       Button1.Caption := 'Consultar direto';
@@ -423,7 +417,12 @@ end;
 
 procedure TForm1.Button2Click(Sender: TObject);
 begin
-  Thread1.ExecSQL(DataSource2, Button2);
+  if not (Thread1.EmConsulta)
+    then Thread1.ExecSQL(DataSource2, Button2)
+    else begin
+      Thread1.CancelarConsulta;
+      Button2.Caption := 'Consultar direto';
+    end;
 end;
 
 procedure TForm1.Button3Click(Sender: TObject);

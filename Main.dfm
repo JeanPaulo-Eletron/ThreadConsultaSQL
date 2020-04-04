@@ -17,9 +17,9 @@ object Form1: TForm1
   PixelsPerInch = 96
   TextHeight = 13
   object lbl1: TLabel
-    Left = 320
-    Top = 56
-    Width = 6
+    Left = 128
+    Top = 13
+    Width = 41
     Height = 13
     Caption = '1'
   end
