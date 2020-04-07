@@ -1,7 +1,6 @@
 object Form1: TForm1
   Left = 0
   Top = 0
-  Caption = '-'
   ClientHeight = 365
   ClientWidth = 767
   Color = clBtnFace
@@ -19,7 +18,7 @@ object Form1: TForm1
   object lbl1: TLabel
     Left = 128
     Top = 13
-    Width = 41
+    Width = 6
     Height = 13
     Caption = '1'
   end
@@ -83,12 +82,21 @@ object Form1: TForm1
   end
   object Button6: TButton
     Left = 213
-    Top = 55
+    Top = 39
     Width = 115
     Height = 25
-    Caption = 'Contar'
+    Caption = 'Timer Thread'
     TabOrder = 6
     OnClick = Button6Click
+  end
+  object Button7: TButton
+    Left = 334
+    Top = 39
+    Width = 115
+    Height = 25
+    Caption = 'Timer Thread Assync'
+    TabOrder = 7
+    OnClick = Button7Click
   end
   object Query1: TADOQuery
     Connection = ADOConnection1
