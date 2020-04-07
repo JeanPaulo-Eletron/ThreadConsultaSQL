@@ -107,7 +107,7 @@ var
 implementation
 
 {$R *.DFM}
-// ------------------- FUNÇÕES GLOBAIS -------------------- //
+// ------------------- FUNÃ‡Ã•ES GLOBAIS -------------------- //
 
 procedure DesativarDataSource(Qry: TADOQuery);
 var
@@ -274,7 +274,7 @@ procedure TThreadMain.Execute;
 var
 Msg : TMsg;
 begin
-  Rest := 10;
+  Rest := 1;
   FreeOnTerminate := self.Finished;
   while not Terminated do begin
     if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then begin
@@ -293,7 +293,7 @@ begin
           end;
         finally
           EmConsulta := false;
-          PeekMessage(Msg, 0, 0, 0, PM_REMOVE);//remove última mensagem
+          PeekMessage(Msg, 0, 0, 0, PM_REMOVE);//remove Ãºltima mensagem
         end;
       except
         Self.Execute;//Caso ocorra um erro tentar executar novamente.
@@ -313,7 +313,7 @@ try
   Synchronize(
   procedure
   begin
-    List  := Self.MyList.First;//*** Ele tem que pegar a primeira colocada, pois é a primeira a ser executada ***
+    List  := Self.MyList.First;//*** Ele tem que pegar a primeira colocada, pois Ã© a primeira a ser executada ***
     NovaConexao(List.DS);
     Aux   := Integer(Msg.wParam);
     Button := List.Button;
@@ -334,7 +334,7 @@ try
       Query.Close;
       DataSource.Enabled := True;
       Button.Enabled := True;
-    end;//é porque eu cancelei no meio
+    end;//Ã© porque eu cancelei no meio
   finally
     Button.Caption := 'Consultar direto';
     MyList.Remove(List);
@@ -402,7 +402,7 @@ begin
     if Terminated
       then exit;
     if Msg.lParam = 0
-      then Queue(TThreadMethod(Procedimento))//Parecido com Syncronized, porém continua verificando se acabou
+      then Queue(TThreadMethod(Procedimento))//Parecido com Syncronized, porÃ©m continua verificando se acabou
       else Queue(TThreadProcedure(RProcedimento))
   end;
   MyListProc.Delete(0);
@@ -429,7 +429,7 @@ begin
         if Finished
           then exit;
         if Msg.lParam = 0
-          then Queue(TThreadMethod(Procedimento))//Parecido com Syncronized, porém continua verificando se acabou
+          then Queue(TThreadMethod(Procedimento))//Parecido com Syncronized, porÃ©m continua verificando se acabou
           else Queue(TThreadProcedure(RProcedimento))
       end;
       QtdeProcAsync := QtdeProcAsync - 1;
@@ -638,7 +638,7 @@ begin
           Thread1.Query.Close;
           Thread1.DataSource.Enabled := True;
           Thread1.EmConsulta := False;
-        end;//é porque eu cancelei no meio
+        end;//Ã© porque eu cancelei no meio
     end
     );
   finally
