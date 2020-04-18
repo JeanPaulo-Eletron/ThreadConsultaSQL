@@ -456,7 +456,7 @@ begin
         procedure begin
           if Terminated
             then exit;
-          Queue(TThreadMethod(Procedimento))//Parecido com Syncronized, porém continua verificando se acabou
+          Procedimento;
         end;
     end
     else begin
@@ -464,7 +464,7 @@ begin
         procedure begin
           if Terminated
             then exit;
-          Queue(TThreadProcedure(RProcedimento));
+          RProcedimento;
         end;
     end;
   Aux.Tipo := Rest;
