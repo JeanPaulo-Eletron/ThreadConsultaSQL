@@ -6,16 +6,15 @@ interface
 uses
     Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
     Dialogs, Db, Vcl.Grids, Vcl.DBGrids, Data.Win.ADODB, Vcl.StdCtrls,
-    System.Rtti, System.TypInfo, Generics.Collections;
+    System.Rtti, System.TypInfo, Generics.Collections, Vcl.ExtCtrls;
 
 const
     WM_OPEN                       = WM_USER + 1;
     WM_PROCEDIMENTOGENERICO       = WM_USER + 2;
     WM_PROCEDIMENTOGENERICOASSYNC = WM_USER + 3;
-    WM_TIMER                      = WM_USER + 4;
+    WM_TIMERP                     = WM_USER + 4;
     WM_TIMERASSYNC                = WM_USER + 5;
-    WM_TRIGGER                    = WM_USER + 6;
-    WM_TERMINATE                  = WM_USER + 7;
+    WM_TERMINATE                  = WM_USER + 6;
 type
     TProcedure        = Procedure of object;
     TRProcedure       = reference to procedure;
@@ -27,6 +26,8 @@ type
     TRecordProcedure = record
       Procedimento : TProcedure;
       RProcedimento : TProc;
+      Tipo : Integer;
+      ID   : Integer;
     end;
     procedure DesativarDataSource(Qry: TADOQuery);
     procedure AtivarDataSource(Qry:TAdoQuery);
@@ -40,10 +41,16 @@ private
     MyList:     TList<TSQLList>;
     QtdeProcAsync: Integer;
     MyListProc: TList<TRecordProcedure>;
+    MyListProcAssync: TList<TRecordProcedure>;
+    MyListProcTimer: TList<TRecordProcedure>;
+    MyListProcTimerAssync: TList<TRecordProcedure>;
+    QtdeTimers: Integer;
+    MyListTimer: TList<TRecordProcedure>;
+    MyListTimerAssync: TList<TRecordProcedure>;
+    ID : Integer;
     procedure WMProcGenerico(Msg: TMsg);
     procedure WMOpen(Msg: TMsg);
     procedure WMProcGenericoAssync(Msg: TMsg);
-    procedure WMTRIGGER(Msg: TMsg);
     procedure WMTIMER(Msg: TMsg);
     procedure WMTIMERAssync(Msg: TMsg);
     procedure PrepararRequisicaoConsulta(DS: TDataSource;Button: TButton);
@@ -101,13 +108,32 @@ private
 public
 { Public declarations }
     procedure Consulta;
+    procedure Synchronize(AThreadProc: TProc);overload;
+    procedure Synchronize(AThreadProc: TProc; Thread: TThread);overload;
 end;
 var
   Form1: TForm1;
+  Timerid: UINT;
 implementation
 
 {$R *.DFM}
 // ------------------- FUNÇÕES GLOBAIS -------------------- //
+procedure MyTimeout( hwnd: HWND; uMsg: UINT;idEvent: UINT ; dwTime : DWORD);
+stdcall;
+var
+   I: integer;
+   Proc : TProc;
+begin
+  for I := 0 to Length(Form1.Thread1.MyListTimer.List) do if Form1.Thread1.MyListTimer.List[I].ID = idEvent  then break;
+  Proc := Form1.Thread1.MyListTimer.List[I].RProcedimento;
+  Proc;
+end;
+
+{
+  Bloqueada ---> verificar se threads estão bloqueada, para atender sobe demanda. ---> Monitor(Para aumentar a qtde sobe demanda """(Cores.dwNumberOfProcessors - 1) + IdlenessIndex(Uma expressão matemática logaritma baseada na memoria ram e no numero de cores[Uso intensivo de CPU, Uso intensivo de HD --> Por meta dados])""")
+  Threshold ---> Limiar   NODE X APACHE(LENTIDÃO).
+  Inferno da DLL e CALLBACKS e usar promices fica mais simples.
+}
 
 procedure DesativarDataSource(Qry: TADOQuery);
 var
@@ -205,11 +231,11 @@ procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProcedure; Butto
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
-  if MyListProc = nil
-    then  MyListProc := TList<TRecordProcedure>.Create;
+  if MyListProcAssync = nil
+    then  MyListProcAssync := TList<TRecordProcedure>.Create;
   Button.Enabled := False;
   Self.RecordProcedure.Procedimento := Procedimento;
-  MyListProc.Add(Self.RecordProcedure);
+  MyListProcAssync.Add(Self.RecordProcedure);
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 0, 0);
 end;
 
@@ -217,11 +243,11 @@ procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProc; Button: TB
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
-  if MyListProc = nil
-    then  MyListProc := TList<TRecordProcedure>.Create;
+  if MyListProcAssync = nil
+    then  MyListProcAssync := TList<TRecordProcedure>.Create;
   Button.Enabled := False;
   Self.RecordProcedure.RProcedimento := Procedimento;
-  MyListProc.Add(Self.RecordProcedure);
+  MyListProcAssync.Add(Self.RecordProcedure);
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 1, 0);
 end;
 
@@ -229,32 +255,32 @@ procedure TThreadMain.Timer(Rest: NativeUInt; Procedimento: TProcedure);
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
-  if MyListProc = nil
-    then  MyListProc := TList<TRecordProcedure>.Create;
+  if MyListProcTimer = nil
+    then  MyListProcTimer := TList<TRecordProcedure>.Create;
   Self.RecordProcedure.Procedimento := Procedimento;
-  MyListProc.Add(Self.RecordProcedure);
-  PostThreadMessage(ThreadID, WM_TIMER, Rest, 0);
+  MyListProcTimer.Add(Self.RecordProcedure);
+  PostThreadMessage(ThreadID, WM_TIMERP, Rest, 0);
 end;
 
 procedure TThreadMain.Timer(Rest: NativeUInt; Procedimento: TProc);
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
-  if MyListProc = nil
-    then  MyListProc := TList<TRecordProcedure>.Create;
+  if MyListProcTimer = nil
+    then  MyListProcTimer := TList<TRecordProcedure>.Create;
   Self.RecordProcedure.RProcedimento := Procedimento;
-  MyListProc.Add(Self.RecordProcedure);
-  PostThreadMessage(ThreadID, WM_TIMER, Rest, 1);
+  MyListProcTimer.Add(Self.RecordProcedure);
+  PostThreadMessage(ThreadID, WM_TIMERP, Rest, 1);
 end;
 
 procedure TThreadMain.TimerAssync(Rest: NativeUInt; Procedimento: TProcedure);
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
-  if MyListProc = nil
-    then  MyListProc := TList<TRecordProcedure>.Create;
+  if MyListProcTimerAssync = nil
+    then  MyListProcTimerAssync := TList<TRecordProcedure>.Create;
   Self.RecordProcedure.Procedimento := Procedimento;
-  MyListProc.Add(Self.RecordProcedure);
+  MyListProcTimerAssync.Add(Self.RecordProcedure);
   PostThreadMessage(ThreadID, WM_TIMERASSYNC, Rest, 0);
 end;
 
@@ -262,10 +288,10 @@ procedure TThreadMain.TimerAssync(Rest: NativeUInt; Procedimento: TProc);
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
-  if MyListProc = nil
-    then  MyListProc := TList<TRecordProcedure>.Create;
+  if MyListProcTimerAssync = nil
+    then  MyListProcTimerAssync := TList<TRecordProcedure>.Create;
   Self.RecordProcedure.RProcedimento := Procedimento;
-  MyListProc.Add(Self.RecordProcedure);
+  MyListProcTimerAssync.Add(Self.RecordProcedure);
   PostThreadMessage(ThreadID, WM_TIMERASSYNC, Rest, 1);
 end;
 
@@ -273,12 +299,15 @@ end;
 procedure TThreadMain.Execute;
 var
 Msg : TMsg;
+Cores : TSystemInfo;
 begin
-  Rest := 10;
+  GetSystemInfo(Cores);
+  Rest := 1;
   FreeOnTerminate := self.Finished;
   while not Terminated do begin
     if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then begin
       Sleep(Rest);
+      while QtdeProcAsync >= (Cores.dwNumberOfProcessors - 1) do sleep(Rest);
       EmConsulta := true;
       try
         try
@@ -286,8 +315,9 @@ begin
             WM_OPEN:                       WMOpen(Msg);
             WM_PROCEDIMENTOGENERICO:       WMProcGenerico(Msg);
             WM_PROCEDIMENTOGENERICOASSYNC: WMProcGenericoAssync(Msg);
-            WM_TIMER:                      WMTIMER(Msg);
+            WM_TIMERP:                     WMTIMER(Msg);
             WM_TIMERASSYNC:                WMTIMERAssync(Msg);
+            WM_TIMER:                      MyTimeout(Msg.hwnd,Msg.message,Msg.wParam,Msg.lParam);
             WM_DESTROY:                    Destroy;
             WM_TERMINATE:                  Terminate;
           end;
@@ -359,31 +389,35 @@ end;
 
 procedure TThreadMain.WMProcGenericoAssync(Msg: TMsg);
 var
-  Aux: TRecordProcedure;
   Procedimento: TProc;
 begin
-  Aux := MyListProc.First;
+  //Ele deve esperar os outros processos assyncronos acabarem para poder executar, caso o contrário perde a eficiencia.
   QtdeProcAsync := QtdeProcAsync + 1;
   if Integer(Msg.wParam) = 0
     then begin
       CreateAnonymousThread(
         procedure
         begin
-          MyListProc.First.Procedimento;
+          MyListProcAssync.First.Procedimento;
+          if Self.Finished
+            then exit;
+          MyListProcAssync.Remove(MyListProc.First);
           QtdeProcAsync := QtdeProcAsync - 1;
         end).Start;
     end
     else begin
-      Procedimento := MyListProc.First.RProcedimento;
+      Procedimento := MyListProcAssync.First.RProcedimento;
       CreateAnonymousThread(
         procedure
         begin
           Procedimento;
+          if Self.Finished
+            then exit;
+          MyListProcAssync.Remove(MyListProc.First);
           QtdeProcAsync := QtdeProcAsync - 1;
         end
       ).Start;
     end;
-  MyListProc.Remove(MyListProc.First);
 end;
 
 procedure TThreadMain.WMTIMER(Msg: TMsg);
@@ -393,19 +427,40 @@ var
   RProcedimento: TProc;
   Rest: NativeUInt;
 begin
+  QtdeTimers := QtdeTimers + 1;
+
   if Msg.lParam = 0
-    then Procedimento  := MyListProc.First.Procedimento
-    else RProcedimento := MyListProc.First.RProcedimento;
+    then Procedimento  := MyListProcTimer.First.Procedimento
+    else RProcedimento := MyListProcTimer.First.RProcedimento;
+
   Rest := Msg.wParam;
-  while true do begin
-    Sleep(Rest);
-    if Terminated
-      then exit;
-    if Msg.lParam = 0
-      then Queue(TThreadMethod(Procedimento))//Parecido com Syncronized, porém continua verificando se acabou
-      else Queue(TThreadProcedure(RProcedimento))
-  end;
-  MyListProc.Delete(0);
+  if Msg.lParam = 0
+    then begin
+      Aux.RProcedimento :=
+        procedure begin
+          if Terminated
+            then exit;
+          Queue(TThreadMethod(Procedimento))//Parecido com Syncronized, porém continua verificando se acabou
+        end;
+    end
+    else begin
+      Aux.RProcedimento :=
+        procedure begin
+          if Terminated
+            then exit;
+          Queue(TThreadProcedure(RProcedimento));
+        end;
+    end;
+  Aux.Tipo := Rest;
+  if MyListTimer = nil
+    then MyListTimer := TList<TRecordProcedure>.Create;
+  Synchronize(
+    procedure begin
+      TimerId   := SetTimer(0, QtdeTimers, Rest, @MyTimeout);
+      Aux.ID    := TimerID;
+      MyListTimer.Add(Aux);
+    end);// não é async vai no main
+  MyListProcTimer.Delete(0);
 end;
 
 procedure TThreadMain.WMTIMERAssync(Msg: TMsg);
@@ -413,29 +468,43 @@ var
   Aux: TRecordProcedure;
   Procedimento: TProcedure;
   RProcedimento: TProc;
+  X : TRecordProcedure;
 begin
   if Msg.lParam = 0
-    then Procedimento  := MyListProc.First.Procedimento
-    else RProcedimento := MyListProc.First.RProcedimento;
+    then Aux.Procedimento  := MyListProcTimerAssync.First.Procedimento
+    else Aux.RProcedimento := MyListProcTimerAssync.First.RProcedimento;
+  if MyListTimer = nil
+    then MyListTimerAssync := TList<TRecordProcedure>.Create;
   QtdeProcAsync := QtdeProcAsync + 1;
+  ID := ID + 1;
+  Aux.ID := ID;
+  MyListTimerAssync.Add(Aux);
   CreateAnonymousThread(
     procedure
     var
       Rest: NativeUInt;
+      I:    Integer;
+      RProc: TProc;
     begin
       Rest := Msg.wParam;
+      for I := 0 to Length(Form1.Thread1.MyListTimerAssync.List) do if Form1.Thread1.MyListTimerAssync.List[I].ID = ID  then break;
+      RProc := Form1.Thread1.MyListTimerAssync.List[I].RProcedimento;
       while true do begin
         Sleep(Rest);
         if Finished
           then exit;
+        if Terminated
+          then break;
         if Msg.lParam = 0
-          then Queue(TThreadMethod(Procedimento))//Parecido com Syncronized, porém continua verificando se acabou
-          else Queue(TThreadProcedure(RProcedimento))
+          then Form1.Thread1.MyListTimerAssync.List[I].Procedimento
+          else RProc;
       end;
       QtdeProcAsync := QtdeProcAsync - 1;
+      MyListTimerAssync.Delete(I);
     end
   ).Start;
-  MyListProc.Delete(0);
+  sleep(1);
+  MyListProcTimerAssync.Delete(0);
 end;
 
 procedure TThreadMain.NovaConexao(DS: TDataSource);
@@ -524,30 +593,6 @@ begin
     else Terminate;
 end;
 
-procedure TThreadMain.WMTRIGGER(Msg: TMsg);
-var
-  Aux: TRecordProcedure;
-  Procedimento: TProc;
-begin
-  Procedimento := MyListProc.First.RProcedimento;
-  QtdeProcAsync := QtdeProcAsync + 1;
-  CreateAnonymousThread(
-          Procedure
-          var
-            Rest: NativeUInt;
-          begin
-            Rest := Msg.wParam;
-            while true do begin
-              Sleep(Rest);
-              if Finished
-                then exit;
-              Queue(TThreadProcedure(Procedimento));
-            end;
-            QtdeProcAsync := QtdeProcAsync - 1;
-          end).Start;
-  MyListProc.Delete(0);
-end;
-
 // ------------------- MAIN -------------------- //
 
 procedure TForm1.Button1Click(Sender: TObject);
@@ -592,7 +637,7 @@ begin
                   Thread1.Queue(
                   procedure
                   begin
-                    form1.lbl1.Caption := IntToStr( StrToInt(form1.lbl1.Caption) + 1);
+                    form1.lbl1.Caption := IntToStr( StrToInt(form1.lbl1.Caption) + 10);
                   end);
                 end;
               end, TButton(Sender));
@@ -600,7 +645,7 @@ end;
 
 procedure TForm1.Button6Click(Sender: TObject);
 begin
-  Thread1.Timer(100,
+  Thread1.Timer(3000,
   procedure
   begin
     if StrToInt(Form1.lbl1.Caption) > 2000
@@ -661,7 +706,17 @@ end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
 begin
+  KillTimer(0, TimerId);
   Thread1.Kill;
 end;
 
+procedure TForm1.Synchronize(AThreadProc: TProc);
+begin
+  Thread1.Synchronize(Thread1,TThreadProcedure(AThreadProc));
+end;
+
+procedure TForm1.Synchronize(AThreadProc: TProc; Thread: TThread);
+begin
+  Thread1.Synchronize(Thread,TThreadProcedure(AThreadProc));
+end;
 end.
