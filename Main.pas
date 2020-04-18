@@ -118,7 +118,8 @@ var
 implementation
 
 {$R *.DFM}
-// ------------------- FUNÇÕES GLOBAIS -------------------- //
+
+// ------------------- FUNï¿½ï¿½ES GLOBAIS -------------------- //
 procedure MyTimeout( hwnd: HWND; uMsg: UINT;idEvent: UINT ; dwTime : DWORD);
 stdcall;
 var
@@ -131,8 +132,8 @@ begin
 end;
 
 {
-  Bloqueada ---> verificar se threads estão bloqueada, para atender sobe demanda. ---> Monitor(Para aumentar a qtde sobe demanda """(Cores.dwNumberOfProcessors - 1) + IdlenessIndex(Uma expressão matemática logaritma baseada na memoria ram e no numero de cores[Uso intensivo de CPU, Uso intensivo de HD --> Por meta dados])""")
-  Threshold ---> Limiar   NODE X APACHE(LENTIDÃO).
+  Bloqueada ---> verificar se threads estï¿½o bloqueada, para atender sobe demanda. ---> Monitor(Para aumentar a qtde sobe demanda """(Cores.dwNumberOfProcessors - 1) + IdlenessIndex(Uma expressï¿½o matemï¿½tica logaritma baseada na memoria ram e no numero de cores[Uso intensivo de CPU, Uso intensivo de HD --> Por meta dados])""")
+  Threshold ---> Limiar   NODE X APACHE(LENTIDï¿½O).
   Inferno da DLL e CALLBACKS e usar promices fica mais simples.
 }
 
@@ -324,7 +325,7 @@ begin
           end;
         finally
           EmConsulta := false;
-          PeekMessage(Msg, 0, 0, 0, PM_REMOVE);//remove última mensagem
+          PeekMessage(Msg, 0, 0, 0, PM_REMOVE);//remove Ãºltima mensagem
         end;
       except
         Self.Execute;//Caso ocorra um erro tentar executar novamente.
@@ -344,7 +345,7 @@ try
   Synchronize(
   procedure
   begin
-    List  := Self.MyList.First;//*** Ele tem que pegar a primeira colocada, pois é a primeira a ser executada ***
+    List  := Self.MyList.First;//*** Ele tem que pegar a primeira colocada, pois Ã© a primeira a ser executada ***
     NovaConexao(List.DS);
     Aux   := Integer(Msg.wParam);
     Button := List.Button;
@@ -365,7 +366,7 @@ try
       Query.Close;
       DataSource.Enabled := True;
       Button.Enabled := True;
-    end;//é porque eu cancelei no meio
+    end;//Ã© porque eu cancelei no meio
   finally
     Button.Caption := 'Consultar direto';
     MyList.Remove(List);
@@ -400,7 +401,7 @@ begin
   ID := ID + 1;
   Aux.ID := ID;
   MyListProcWillProcAssync.Add(Aux);
-  //Ele deve esperar os outros processos assyncronos acabarem para poder executar, caso o contrário perde a eficiencia.
+  //Ele deve esperar os outros processos assyncronos acabarem para poder executar, caso o contrï¿½rio perde a eficiencia.
   if Integer(Msg.wParam) = 0
     then begin
       CreateAnonymousThread(
@@ -455,7 +456,7 @@ begin
         procedure begin
           if Terminated
             then exit;
-          Queue(TThreadMethod(Procedimento))//Parecido com Syncronized, porém continua verificando se acabou
+          Queue(TThreadMethod(Procedimento))//Parecido com Syncronized, porï¿½m continua verificando se acabou
         end;
     end
     else begin
@@ -474,7 +475,7 @@ begin
       TimerId   := SetTimer(0, QtdeTimers, Rest, @MyTimeout);
       Aux.ID    := TimerID;
       MyListTimer.Add(Aux);
-    end);// não é async vai no main
+    end);// nÃ£o async vai no main
   MyListProcTimer.Delete(0);
 end;
 
@@ -698,7 +699,7 @@ begin
           Thread1.Query.Close;
           Thread1.DataSource.Enabled := True;
           Thread1.EmConsulta := False;
-        end;//é porque eu cancelei no meio
+        end;//Ã© porque eu cancelei no meio
     end
     );
   finally

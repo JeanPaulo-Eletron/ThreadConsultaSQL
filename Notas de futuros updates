@@ -1,7 +1,7 @@
 3.0
-funciona como um timer já que tem um sleep mandando conferir a condição de tempos em tempos(em ambos os casos em paralelo), 
+Confere a condição cadastrada de tempos em tempos(em ambos os casos em paralelo), 
                                se passar lança as procedures cadastradas em ordem(pelo método Subscribe).
--- Incluido Triggers(Com Quee quando executar)
+-- Incluido Triggers(Com Quee quando executar, ou seja passa pelo form principal ao executar)
 -- Incluido TriggersAssync(Executa em paralelo mesmo)
 >>>>>>> Possivelmente 4.0
 -- Incluido EncadeiamentoCondicionalUnitário ( Se ... Então Procedure1 Senão Procedure2 )
