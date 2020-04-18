@@ -1,4 +1,4 @@
-//Feito por: Jean Paulo Athanazio De Mei
+﻿//Feito por: Jean Paulo Athanazio De Mei
 unit Main;
 
 interface
@@ -119,7 +119,7 @@ implementation
 
 {$R *.DFM}
 
-// ------------------- FUN��ES GLOBAIS -------------------- //
+// ------------------- FUNÇOES GLOBAIS -------------------- //
 procedure MyTimeout( hwnd: HWND; uMsg: UINT;idEvent: UINT ; dwTime : DWORD);
 stdcall;
 var
@@ -132,8 +132,8 @@ begin
 end;
 
 {
-  Bloqueada ---> verificar se threads est�o bloqueada, para atender sobe demanda. ---> Monitor(Para aumentar a qtde sobe demanda """(Cores.dwNumberOfProcessors - 1) + IdlenessIndex(Uma express�o matem�tica logaritma baseada na memoria ram e no numero de cores[Uso intensivo de CPU, Uso intensivo de HD --> Por meta dados])""")
-  Threshold ---> Limiar   NODE X APACHE(LENTID�O).
+  Bloqueada ---> verificar se threads estão bloqueada, para atender sobe demanda. ---> Monitor(Para aumentar a qtde sobe demanda """(Cores.dwNumberOfProcessors - 1) + IdlenessIndex(Uma expressão matemática logaritma baseada na memoria ram e no numero de cores[Uso intensivo de CPU, Uso intensivo de HD --> Por meta dados])""")
+  Threshold ---> Limiar   NODE X APACHE(LENTIDÃO).
   Inferno da DLL e CALLBACKS e usar promices fica mais simples.
 }
 
@@ -456,7 +456,7 @@ begin
         procedure begin
           if Terminated
             then exit;
-          Queue(TThreadMethod(Procedimento))//Parecido com Syncronized, por�m continua verificando se acabou
+          Queue(TThreadMethod(Procedimento))//Parecido com Syncronized, porém continua verificando se acabou
         end;
     end
     else begin
