@@ -42,6 +42,7 @@ private
     QtdeProcAsync: Integer;
     MyListProc: TList<TRecordProcedure>;
     MyListProcAssync: TList<TRecordProcedure>;
+    MyListProcWillProcAssync: TList<TRecordProcedure>;
     MyListProcTimer: TList<TRecordProcedure>;
     MyListProcTimerAssync: TList<TRecordProcedure>;
     QtdeTimers: Integer;
@@ -390,34 +391,48 @@ end;
 procedure TThreadMain.WMProcGenericoAssync(Msg: TMsg);
 var
   Procedimento: TProc;
+  Aux: TRecordProcedure;
 begin
-  //Ele deve esperar os outros processos assyncronos acabarem para poder executar, caso o contrário perde a eficiencia.
+  if MyListProcWillProcAssync = nil
+    then MyListProcWillProcAssync := TList<TRecordProcedure>.Create;
+  Aux := MyListProcAssync.First;
   QtdeProcAsync := QtdeProcAsync + 1;
+  ID := ID + 1;
+  Aux.ID := ID;
+  MyListProcWillProcAssync.Add(Aux);
+  //Ele deve esperar os outros processos assyncronos acabarem para poder executar, caso o contrário perde a eficiencia.
   if Integer(Msg.wParam) = 0
     then begin
       CreateAnonymousThread(
         procedure
+        var
+          I : Integer;
         begin
-          MyListProcAssync.First.Procedimento;
+          for I := 0 to Length(Form1.Thread1.MyListProcWillProcAssync.List) do if Form1.Thread1.MyListProcWillProcAssync.List[I].ID = ID  then break;
+          MyListProcWillProcAssync.First.Procedimento;
           if Self.Finished
             then exit;
-          MyListProcAssync.Remove(MyListProc.First);
           QtdeProcAsync := QtdeProcAsync - 1;
+          MyListProcWillProcAssync.Delete(0);
         end).Start;
     end
     else begin
-      Procedimento := MyListProcAssync.First.RProcedimento;
       CreateAnonymousThread(
         procedure
+        var
+          I : Integer;
         begin
+          for I := 0 to Length(Form1.Thread1.MyListProcWillProcAssync.List) do if Form1.Thread1.MyListProcWillProcAssync.List[I].ID = ID  then break;
+          Procedimento := Form1.Thread1.MyListProcWillProcAssync.List[I].RProcedimento;
           Procedimento;
           if Self.Finished
             then exit;
-          MyListProcAssync.Remove(MyListProc.First);
           QtdeProcAsync := QtdeProcAsync - 1;
+          MyListProcWillProcAssync.Delete(0);
         end
       ).Start;
     end;
+    MyListProcAssync.Delete(0);
 end;
 
 procedure TThreadMain.WMTIMER(Msg: TMsg);
