@@ -17,7 +17,7 @@ object Form1: TForm1
   TextHeight = 13
   object lbl1: TLabel
     Left = 128
-    Top = 13
+    Top = 51
     Width = 6
     Height = 13
     Caption = '1'

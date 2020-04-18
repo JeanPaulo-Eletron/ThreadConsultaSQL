@@ -308,7 +308,7 @@ begin
   while not Terminated do begin
     if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then begin
       Sleep(Rest);
-      while QtdeProcAsync >= (Cores.dwNumberOfProcessors - 1) do sleep(Rest);
+      while QtdeProcAsync >= (Cores.dwNumberOfProcessors - 1) do sleep(Rest);//melhorar para IO
       EmConsulta := true;
       try
         try
