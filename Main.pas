@@ -67,10 +67,10 @@ public
     procedure Timer(Rest: NativeUInt; Procedimento: TProc);overload;
     procedure TimerAssync(Rest: NativeUInt; Procedimento: TProc);overload;
     procedure TimerAssync(Rest: NativeUInt; Procedimento: TProcedure);overload;
-    procedure ProcedimentoGenerico(Procedimento: TProcedure; Button: TButton);overload;
-    procedure ProcedimentoGenerico(Procedimento: TProc; Button: TButton);overload;
-    procedure ProcedimentoGenericoAssync(Procedimento: TProcedure; Button: TButton);overload;
-    procedure ProcedimentoGenericoAssync(Procedimento: TProc; Button: TButton);overload;
+    procedure ProcedimentoGenerico(Procedimento: TProcedure);overload;
+    procedure ProcedimentoGenerico(Procedimento: TProc);overload;
+    procedure ProcedimentoGenericoAssync(Procedimento: TProcedure);overload;
+    procedure ProcedimentoGenericoAssync(Procedimento: TProc);overload;
     procedure CancelarConsulta;
     procedure NovaConexao(DS: TDataSource);
     procedure Kill;
@@ -220,49 +220,45 @@ begin
   PostThreadMessage(ThreadID, WM_OPEN, 1, 0);
 end;
 
-procedure TThreadMain.ProcedimentoGenerico(Procedimento: TProcedure; Button: TButton);
+procedure TThreadMain.ProcedimentoGenerico(Procedimento: TProcedure);
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
   if MyListProc = nil
     then  MyListProc := TList<TRecordProcedure>.Create;
-  Button.Enabled := False;
   Self.RecordProcedure.Procedimento := Procedimento;
   MyListProc.Add(Self.RecordProcedure);
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICO, 0, 0);
 end;
 
-procedure TThreadMain.ProcedimentoGenerico(Procedimento: TProc; Button: TButton);
+procedure TThreadMain.ProcedimentoGenerico(Procedimento: TProc);
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
   if MyListProc = nil
     then  MyListProc := TList<TRecordProcedure>.Create;
-  Button.Enabled := False;
   Self.RecordProcedure.RProcedimento := Procedimento;
   MyListProc.Add(Self.RecordProcedure);
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICO, 1, 0);
 end;
 
-procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProcedure; Button: TButton);
+procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProcedure);
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
   if MyListProcAssync = nil
     then  MyListProcAssync := TList<TRecordProcedure>.Create;
-  Button.Enabled := False;
   Self.RecordProcedure.Procedimento := Procedimento;
   MyListProcAssync.Add(Self.RecordProcedure);
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 0, 0);
 end;
 
-procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProc; Button: TButton);
+procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProc);
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
   if MyListProcAssync = nil
     then  MyListProcAssync := TList<TRecordProcedure>.Create;
-  Button.Enabled := False;
   Self.RecordProcedure.RProcedimento := Procedimento;
   MyListProcAssync.Add(Self.RecordProcedure);
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 1, 0);
@@ -612,7 +608,7 @@ end;
 
 procedure TForm1.Button3Click(Sender: TObject);
 begin
-  Thread1.ProcedimentoGenerico(Consulta, Button3);
+  Thread1.ProcedimentoGenerico(Consulta);
 end;
 
 procedure TForm1.Button4Click(Sender: TObject);
@@ -635,7 +631,7 @@ begin
                     form1.lbl1.Caption := IntToStr( StrToInt(form1.lbl1.Caption) + 10);
                   end);
                 end;
-              end, TButton(Sender));
+              end);
 end;
 
 procedure TForm1.Button6Click(Sender: TObject);
