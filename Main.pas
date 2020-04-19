@@ -29,8 +29,6 @@ type
       Tipo : Integer;
       ID   : Integer;
     end;
-    procedure DesativarDataSource(Qry: TADOQuery);
-    procedure AtivarDataSource(Qry:TAdoQuery);
 type
     TThreadMain = class(TThread)
 private
@@ -49,6 +47,7 @@ private
     MyListTimer: TList<TRecordProcedure>;
     MyListTimerAssync: TList<TRecordProcedure>;
     ID : Integer;
+    procedure Dispatcher;
     procedure WMProcGenerico(Msg: TMsg);
     procedure WMOpen(Msg: TMsg);
     procedure WMProcGenericoAssync(Msg: TMsg);
@@ -131,37 +130,53 @@ begin
   Proc;
 end;
 
-{
-  Bloqueada ---> verificar se threads estão bloqueada, para atender sobe demanda. ---> Monitor(Para aumentar a qtde sobe demanda """(Cores.dwNumberOfProcessors - 1) + IdlenessIndex(Uma expressão matemática logaritma baseada na memoria ram e no numero de cores[Uso intensivo de CPU, Uso intensivo de HD --> Por meta dados])""")
-  Threshold ---> Limiar   NODE X APACHE(LENTIDÃO).
-  Inferno da DLL e CALLBACKS e usar promices fica mais simples.
-}
-
-procedure DesativarDataSource(Qry: TADOQuery);
-var
-  i: integer;
-  Form: TForm;
-begin
-  Form := TForm(Qry.Owner);
-  for i := 0 to (Form.ComponentCount - 1) do begin
-   if (Form.Components[i] is TDataSource) and (TDataSource(Form.Components[i]).DataSet = Qry)
-     then TDataSource(Form.Components[i]).Enabled := False;
-  end;
-end;
-
-procedure AtivarDataSource(Qry: TADOQuery);
-var
-  i: integer;
-  Form: TForm;
-begin
-  Form := TForm(Qry.Owner);
-  for i := 0 to (Form.ComponentCount - 1) do begin
-   if (Form.Components[i] is TDataSource) and (TDataSource(Form.Components[i]).DataSet = Qry)
-     then TDataSource(Form.Components[i]).Enabled := True;
-  end;
-end;
-
 // ------------------- THREAD CONSULTA -------------------- //
+
+procedure TThreadMain.Execute;
+begin
+  Rest := 1;
+  FreeOnTerminate := self.Finished;
+  while not Terminated do begin
+    Dispatcher;
+  end;
+end;
+
+procedure TThreadMain.Dispatcher;
+var
+  Msg : TMsg;
+  Cores : TSystemInfo;
+begin
+  GetSystemInfo(Cores);
+  if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then begin
+    Sleep(Rest);
+    {
+      Bloqueada ---> verificar se threads estão bloqueada, para atender sobe demanda. ---> Monitor(Para aumentar a qtde sobe demanda """(Cores.dwNumberOfProcessors - 1) + IdlenessIndex(Uma expressão matemática logaritma baseada na memoria ram e no numero de cores[Uso intensivo de CPU, Uso intensivo de HD --> Por meta dados])""")
+      Threshold ---> Limiar   NODE X APACHE(LENTIDÃO).
+      Inferno da DLL e CALLBACKS e usar promices fica mais simples.
+    }
+    while QtdeProcAsync >= (Cores.dwNumberOfProcessors - 1) do sleep(Rest);//melhorar para IO
+    EmConsulta := true;
+    try
+      try
+        case Msg.Message of
+          WM_OPEN:                       WMOpen(Msg);
+          WM_PROCEDIMENTOGENERICO:       WMProcGenerico(Msg);
+          WM_PROCEDIMENTOGENERICOASSYNC: WMProcGenericoAssync(Msg);
+          WM_TIMERP:                     WMTIMER(Msg);
+          WM_TIMERASSYNC:                WMTIMERAssync(Msg);
+          WM_TIMER:                      MyTimeout(Msg.hwnd,Msg.message,Msg.wParam,Msg.lParam);
+          WM_DESTROY:                    Destroy;
+          WM_TERMINATE:                  Terminate;
+        end;
+      finally
+        EmConsulta := false;
+        PeekMessage(Msg, 0, 0, 0, PM_REMOVE);//remove última mensagem
+      end;
+    except
+      Self.Execute;//Caso ocorra um erro tentar executar novamente.
+    end;
+  end
+end;
 
 procedure TThreadMain.RelocarGrid(DS: TDataSource);
 var
@@ -295,43 +310,6 @@ begin
   Self.RecordProcedure.RProcedimento := Procedimento;
   MyListProcTimerAssync.Add(Self.RecordProcedure);
   PostThreadMessage(ThreadID, WM_TIMERASSYNC, Rest, 1);
-end;
-
-{inicio}
-procedure TThreadMain.Execute;
-var
-Msg : TMsg;
-Cores : TSystemInfo;
-begin
-  GetSystemInfo(Cores);
-  Rest := 1;
-  FreeOnTerminate := self.Finished;
-  while not Terminated do begin
-    if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then begin
-      Sleep(Rest);
-      while QtdeProcAsync >= (Cores.dwNumberOfProcessors - 1) do sleep(Rest);//melhorar para IO
-      EmConsulta := true;
-      try
-        try
-          case Msg.Message of
-            WM_OPEN:                       WMOpen(Msg);
-            WM_PROCEDIMENTOGENERICO:       WMProcGenerico(Msg);
-            WM_PROCEDIMENTOGENERICOASSYNC: WMProcGenericoAssync(Msg);
-            WM_TIMERP:                     WMTIMER(Msg);
-            WM_TIMERASSYNC:                WMTIMERAssync(Msg);
-            WM_TIMER:                      MyTimeout(Msg.hwnd,Msg.message,Msg.wParam,Msg.lParam);
-            WM_DESTROY:                    Destroy;
-            WM_TERMINATE:                  Terminate;
-          end;
-        finally
-          EmConsulta := false;
-          PeekMessage(Msg, 0, 0, 0, PM_REMOVE);//remove última mensagem
-        end;
-      except
-        Self.Execute;//Caso ocorra um erro tentar executar novamente.
-      end;
-    end
-  end;
 end;
 
 procedure TThreadMain.WMOpen(Msg: TMsg);
