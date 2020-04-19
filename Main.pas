@@ -312,8 +312,7 @@ procedure TThreadMain.WMOpen(Msg: TMsg);
 var
 Button : TButton;
 List   : TSQLList;
-Form   : TForm;
-i, Aux : Integer;
+Aux : Integer;
 begin
 try
   Synchronize(
@@ -430,7 +429,9 @@ begin
         procedure begin
           if Terminated
             then exit;
+          QtdeProcAsync := QtdeProcAsync + 1;
           Procedimento;
+          QtdeProcAsync := QtdeProcAsync - 1;
         end;
     end
     else begin
@@ -438,7 +439,9 @@ begin
         procedure begin
           if Terminated
             then exit;
+          QtdeProcAsync := QtdeProcAsync - 1;
           RProcedimento;
+          QtdeProcAsync := QtdeProcAsync + 1;
         end;
     end;
   Aux.Tipo := Rest;
@@ -456,16 +459,12 @@ end;
 procedure TThreadMain.WMTIMERAssync(Msg: TMsg);
 var
   Aux: TRecordProcedure;
-  Procedimento: TProcedure;
-  RProcedimento: TProc;
-  X : TRecordProcedure;
 begin
   if Msg.lParam = 0
     then Aux.Procedimento  := MyListProcTimerAssync.First.Procedimento
     else Aux.RProcedimento := MyListProcTimerAssync.First.RProcedimento;
   if MyListTimer = nil
     then MyListTimerAssync := TList<TRecordProcedure>.Create;
-  QtdeProcAsync := QtdeProcAsync + 1;
   ID := ID + 1;
   Aux.ID := ID;
   MyListTimerAssync.Add(Aux);
@@ -485,15 +484,15 @@ begin
           then exit;
         if Terminated
           then break;
+        QtdeProcAsync := QtdeProcAsync + 1;
         if Msg.lParam = 0
           then Form1.Thread1.MyListTimerAssync.List[I].Procedimento
           else RProc;
+        QtdeProcAsync := QtdeProcAsync - 1;
       end;
-      QtdeProcAsync := QtdeProcAsync - 1;
       MyListTimerAssync.Delete(I);
     end
   ).Start;
-  sleep(1);
   MyListProcTimerAssync.Delete(0);
 end;
 
@@ -561,9 +560,6 @@ begin
     if EmConsulta then begin
       Synchronize(
         Procedure
-        var
-          Form : TForm;
-          i    : integer;
         begin
           try
             DataSource.Enabled := False;
