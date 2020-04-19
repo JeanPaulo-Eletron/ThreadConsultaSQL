@@ -582,6 +582,7 @@ end;
 
 procedure TThreadMain.Kill;
 begin
+  KillTimer(0, TimerId);
   if (EmConsulta) or (QtdeProcAsync <> 0)
     then Destroy
     else Terminate;
@@ -700,7 +701,6 @@ end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
 begin
-  KillTimer(0, TimerId);
   Thread1.Kill;
 end;
 
