@@ -18,3 +18,5 @@
 /__history/*.~43~
 /__history/*.~44~
 /__history/*.~45~
+/*.local
+/*.identcache
