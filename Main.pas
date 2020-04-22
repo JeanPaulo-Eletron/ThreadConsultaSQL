@@ -500,6 +500,8 @@ begin
 end;
 
 procedure TThreadMain.NovaConexao(DS: TDataSource);
+// é importante criar uma nova conexão ao acessar o banco pra não dar erro de ter duas consultas
+// retornando resultado ao mesmo tempo, e também para permitir o rollback sem afetar as outras consultas...
 var
   Qry: TAdoQuery;
   ConnectionAux: TADOConnection;
@@ -558,16 +560,7 @@ begin
     end;
     Query.Close;
     for I:=0 to Qry.Fields.Count-1 do begin
-{
-      Query.Fields.Add(Qry.Fields.Fields[i]);
-      Field := Qry.Fields.Fields[I].ClassType.Create;
-      Move(Pointer(Qry.Fields.Fields[I])^, Pointer(Field)^, Field.InstanceSize);
-      object Query1DepartmentID: TSmallintField
-      FieldName = 'DepartmentID'
-      ReadOnly = True
-      end
-     Field := TField(Qry.Fields.Fields[I].ClassType.Create);
-}
+     // Criando campos, cópias da qry base
      if Qry.Fields.Fields[I].ClassName = 'TSmallintField'
        then Field := TSmallintField.Create(Form1)
        else
@@ -676,6 +669,12 @@ begin
      if Qry.Fields.Fields[I].ClassName = 'TSQLTimeStampOffsetField'
        then Field := TSQLTimeStampOffsetField.Create(Form1)
        else
+     if Qry.Fields.Fields[I].ClassName = 'TAggregateField'
+       then Field := TAggregateField.Create(Form1)
+       else
+     if Qry.Fields.Fields[I].ClassName = 'TUnsignedAutoIncField'
+       then Field := TUnsignedAutoIncField.Create(Form1)
+       else
      if Qry.Fields.Fields[I].ClassName = 'TSingleField'
        then Field := TSingleField.Create(Form1);
 
@@ -690,7 +689,10 @@ begin
       Field.OnSetText    := Qry.Fields.Fields[I].OnSetText;
       Field.OnChange     := Qry.Fields.Fields[I].OnChange;
       Field.DataSet      := TDataSet(Query);
-      if (Qry.Fields.Fields[I].ClassName = 'TFloatField') or  (Qry.Fields.Fields[I].ClassName = 'TBCDField')
+      if (Qry.Fields.Fields[I].ClassName = 'TFloatField')    or (Qry.Fields.Fields[I].ClassName = 'TBCDField') or
+         (Qry.Fields.Fields[I].ClassName = 'TExtendedField') or (Qry.Fields.Fields[I].ClassName = 'TSingleField')or
+         (Qry.Fields.Fields[I].ClassName = 'TFMTBCDField')   or (Qry.Fields.Fields[I].ClassName = 'TUnsignedAutoIncField') or
+         (Qry.Fields.Fields[I].ClassName = 'TAggregateField') // Todas os tipos de campos que possuem esse tipo de operação(currency)
         then TFloatField(Field).currency   := TFloatField(Qry.Fields.Fields[I]).currency;
     end
   end;
