@@ -121,15 +121,15 @@ object Form1: TForm1
       ''
       '*/'
       ''
-      'select 1,'#39'A'#39
+      'select 1,'#39'A'#39', 1.85'
       'union all'
-      'select 2,'#39'B'#39
+      'select 2,'#39'B'#39', 1.55'
       'union all'
-      'select 3,'#39'A'#39
+      'select 3,'#39'A'#39', 1.78'
       'union all'
-      'select 4,'#39'X'#39
+      'select 4,'#39'X'#39', 3.85'
       'union all'
-      'select 5,'#39'W'#39
+      'select 5,'#39'W'#39', 5.50'
       '')
     Left = 80
     Top = 8
@@ -141,6 +141,13 @@ object Form1: TForm1
       FieldName = 'COLUMN2'
       ReadOnly = True
       Size = 1
+    end
+    object Query1COLUMN3: TBCDField
+      FieldName = 'COLUMN3'
+      ReadOnly = True
+      currency = True
+      Precision = 3
+      Size = 2
     end
   end
   object ADOConnection1: TADOConnection

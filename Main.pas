@@ -94,6 +94,7 @@ TForm1 = class(TForm)
     Button7: TButton;
     Query1COLUMN1: TIntegerField;
     Query1COLUMN2: TStringField;
+    Query1COLUMN3: TBCDField;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure Button1Click(Sender: TObject);
@@ -678,8 +679,19 @@ begin
      if Qry.Fields.Fields[I].ClassName = 'TSingleField'
        then Field := TSingleField.Create(Form1);
 
-      Field.FieldName := Qry.Fields.Fields[I].FieldName;
-      Field.DataSet   := TDataSet(Query);
+      Field.EditMask     := Qry.Fields.Fields[I].EditMask;
+      Field.DisplayWidth := Qry.Fields.Fields[I].DisplayWidth;
+      Field.FieldKind    := Qry.Fields.Fields[I].FieldKind;
+      Field.ReadOnly     := Qry.Fields.Fields[I].ReadOnly;
+      Field.Visible      := Qry.Fields.Fields[I].Visible;
+      Field.FieldName    := Qry.Fields.Fields[I].FieldName;
+      Field.OnValidate   := Qry.Fields.Fields[I].OnValidate;
+      Field.OnGetText    := Qry.Fields.Fields[I].OnGetText;
+      Field.OnSetText    := Qry.Fields.Fields[I].OnSetText;
+      Field.OnChange     := Qry.Fields.Fields[I].OnChange;
+      Field.DataSet      := TDataSet(Query);
+      if (Qry.Fields.Fields[I].ClassName = 'TFloatField') or  (Qry.Fields.Fields[I].ClassName = 'TBCDField')
+        then TFloatField(Field).currency   := TFloatField(Qry.Fields.Fields[I]).currency;
     end
   end;
   if (DS <> nil) then begin
