@@ -103,7 +103,7 @@ object Form1: TForm1
     CursorType = ctStatic
     Parameters = <>
     SQL.Strings = (
-      '/*'
+      ''
       'SELECT top 1000000 a.[DepartmentID]'
       '      ,a.[Name]'
       '      ,a.[GroupName]'
@@ -119,8 +119,8 @@ object Form1: TForm1
       #9#9#9#9#9#9#9#9#9'   join HumanResources.Department on 1=1'
       ''
       ''
-      '*/'
       ''
+      '/*'
       'select 1,'#39'A'#39', 1.85'
       'union all'
       'select 2,'#39'B'#39', 1.55'
@@ -130,25 +130,9 @@ object Form1: TForm1
       'select 4,'#39'X'#39', 3.85'
       'union all'
       'select 5,'#39'W'#39', 5.50'
-      '')
+      '*/')
     Left = 80
     Top = 8
-    object Query1COLUMN1: TIntegerField
-      FieldName = 'COLUMN1'
-      ReadOnly = True
-    end
-    object Query1COLUMN2: TStringField
-      FieldName = 'COLUMN2'
-      ReadOnly = True
-      Size = 1
-    end
-    object Query1COLUMN3: TBCDField
-      FieldName = 'COLUMN3'
-      ReadOnly = True
-      currency = True
-      Precision = 3
-      Size = 2
-    end
   end
   object ADOConnection1: TADOConnection
     Connected = True

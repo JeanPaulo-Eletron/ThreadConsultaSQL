@@ -22,6 +22,7 @@ type
       Qry: TADOQuery;
       Button: TButton;
       DS:  TDataSource;
+      Connection: TADOConnection;
     end;
     TRecordProcedure = record
       Procedimento : TProcedure;
@@ -32,11 +33,6 @@ type
 type
     TThreadMain = class(TThread)
 private
-    Connection: TADOConnection;
-    Query: TADOQuery;
-    DataSource: TDataSource;
-    NaoPermitirFilaRequisicao: Boolean;
-    MyList:     TList<TSQLList>;
     QtdeProcAsync: Integer;
     MyListProc: TList<TRecordProcedure>;
     MyListProcAssync: TList<TRecordProcedure>;
@@ -57,10 +53,17 @@ private
     procedure RelocarGrid(DS: TDataSource);
 protected
     Rest : Integer;
+    SQLList: TSQLList;
     procedure Execute; override;
 public
     EmConsulta: boolean;
     RecordProcedure:  TRecordProcedure;
+    Connection: TADOConnection;
+    Query: TADOQuery;
+    DataSource: TDataSource;
+    NaoPermitirFilaRequisicao: Boolean;
+    MyList:     TList<TSQLList>;
+    MyListConnection: TList<TSQLList>;
     procedure Open(DS: TDataSource; Button: TButton);
     procedure ExecSQL(DS: TDataSource; Button: TButton);
     procedure Timer(Rest: NativeUInt; Procedimento: TProcedure);overload;
@@ -74,6 +77,7 @@ public
     procedure CancelarConsulta;
     procedure NovaConexao(DS: TDataSource);
     procedure Kill;
+    procedure ClonarQry(Qry: TAdoQuery);
 end;
 
 TForm1 = class(TForm)
@@ -92,9 +96,6 @@ TForm1 = class(TForm)
     lbl1: TLabel;
     Button6: TButton;
     Button7: TButton;
-    Query1COLUMN1: TIntegerField;
-    Query1COLUMN2: TStringField;
-    Query1COLUMN3: TBCDField;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure Button1Click(Sender: TObject);
@@ -188,10 +189,11 @@ var
   Qry:   TAdoQuery;
 begin
   Qry:= TAdoQuery(DS.DataSet);
+  DS.DataSet := nil;
   Form := TForm(Qry.Owner);
   for i := 0 to (Form.ComponentCount - 1) do begin
        if (Form.Components[i] is TDBGrid)  and (TDBGrid(Form.Components[i]).DataSource = DS)
-         then TDBGrid(Form.Components[i]).DataSource := DataSource;
+         then TDBGrid(Form.Components[i]).DataSource := SQLList.DS;
   end;
 end;
 
@@ -323,29 +325,30 @@ try
   begin
     List  := Self.MyList.First;//*** Ele tem que pegar a primeira colocada, pois é a primeira a ser executada ***
     NovaConexao(List.DS);
+    SQLList := MyListConnection.Last;
     Aux   := Integer(Msg.wParam);
     Button := List.Button;
-    Query.Close;
-    Query.Connection     := Connection;
-    DataSource.Enabled := True;
-    Connection.BeginTrans;
+    SQLList.Qry.Close;
+    SQLList.DS.Enabled := True;
+    SQLList.Connection.BeginTrans;
     RelocarGrid(List.DS);
     Button.Enabled := True;
   end
   );
   if Aux = 0
-    then Query.Open
-    else Query.ExecSQL;
+    then SQLList.Qry.Open
+    else SQLList.Qry.ExecSQL;
   if EmConsulta
-    then Connection.CommitTrans
+    then SQLList.Connection.CommitTrans
     else begin
-      Query.Close;
-      DataSource.Enabled := True;
+      SQLList.Qry.Close;
+      SQLList.DS.Enabled := True;
       Button.Enabled := True;
     end;//é porque eu cancelei no meio
   finally
     Button.Caption := 'Consultar direto';
     MyList.Remove(List);
+    MyListConnection.Remove(SQLList);
  end;
 end;
 
@@ -356,10 +359,10 @@ var
 begin
   if Integer(Msg.wParam) = 0
     then begin
-      MyListProc.First.Procedimento;
+      MyListProc.first.Procedimento;
     end
     else begin
-      Procedimento := MyListProc.First.RProcedimento;
+      Procedimento := MyListProc.first.RProcedimento;
       Procedimento;
     end;
   MyListProc.Remove(MyListProc.First);
@@ -386,7 +389,7 @@ begin
           I : Integer;
         begin
           for I := 0 to Length(Form1.Thread1.MyListProcWillProcAssync.List) do if Form1.Thread1.MyListProcWillProcAssync.List[I].ID = ID  then break;
-          MyListProcWillProcAssync.First.Procedimento;
+          MyListProcWillProcAssync.List[I].Procedimento;
           if Self.Finished
             then exit;
           QtdeProcAsync := QtdeProcAsync - 1;
@@ -507,215 +510,63 @@ var
   ConnectionAux: TADOConnection;
   I : Integer;
   Field : TField;
-begin
+  MyList: TSQLList;
+ begin
+  if MyListConnection = nil
+    then MyListConnection := TList<TSQLList>.Create;
+  ID := ID + 1;
   Qry := TAdoQuery(DS.DataSet);
   ConnectionAux := Qry.Connection;
   if ConnectionAux <> nil then begin
-    if Connection = nil
-      then Connection               := TADOConnection.Create(Form1);
-    Connection.ConnectionString     := ConnectionAux.ConnectionString;
-    Connection.ConnectionTimeout    := ConnectionAux.ConnectionTimeout;
-    Connection.ConnectOptions       := ConnectionAux.ConnectOptions;
-    Connection.CursorLocation       := ConnectionAux.CursorLocation;
-    Connection.DefaultDatabase      := ConnectionAux.DefaultDatabase;
-    Connection.IsolationLevel       := ConnectionAux.IsolationLevel;
-    Connection.KeepConnection       := ConnectionAux.KeepConnection;
-    Connection.LoginPrompt          := ConnectionAux.LoginPrompt;
-    Connection.Mode                 := ConnectionAux.Mode;
-    Connection.Name                 := 'Thread'+IntToStr(Self.ThreadID)+ ConnectionAux.Name;
-    Connection.Provider             := ConnectionAux.Provider;
-    Connection.Tag                  := ConnectionAux.Tag;
+    MyList.Connection                      := TADOConnection.Create(Form1);
+    MyList.Connection.ConnectionString     := ConnectionAux.ConnectionString;
+    MyList.Connection.ConnectionTimeout    := ConnectionAux.ConnectionTimeout;
+    MyList.Connection.ConnectOptions       := ConnectionAux.ConnectOptions;
+    MyList.Connection.CursorLocation       := ConnectionAux.CursorLocation;
+    MyList.Connection.DefaultDatabase      := ConnectionAux.DefaultDatabase;
+    MyList.Connection.IsolationLevel       := ConnectionAux.IsolationLevel;
+    MyList.Connection.KeepConnection       := ConnectionAux.KeepConnection;
+    MyList.Connection.LoginPrompt          := ConnectionAux.LoginPrompt;
+    MyList.Connection.Mode                 := ConnectionAux.Mode;
+    MyList.Connection.Name                 := 'Thread'+IntToStr(ID)+IntToStr(Self.ThreadID)+ConnectionAux.Name;
+    MyList.Connection.Provider             := ConnectionAux.Provider;
+    MyList.Connection.Tag                  := ConnectionAux.Tag;
   end;
-  {
-  Try
-    if (Qry <> nil) then begin
-      if Query = nil
-        then Query                    := TADOQuery.Create(FormMain);
-      Query.AutoCalcFields            := Qry.AutoCalcFields;
-      Query.CacheSize                 := Qry.CacheSize;
-      Query.CommandTimeout            := Qry.CommandTimeout;
-      Query.ConnectionString          := Qry.ConnectionString;
-      Query.CursorLocation            := Qry.CursorLocation;
-      Query.CursorType                := Qry.CursorType;
-      Query.DataSource                := Qry.DataSource;
-      Query.EnableBCD                 := Qry.EnableBCD;
-      Query.ExecuteOptions            := Qry.ExecuteOptions;
-      Query.Filter                    := Qry.Filter;
-      Query.Filtered                  := Qry.Filtered;
-      Query.LockType                  := Qry.LockType;
-      Query.MarshalOptions            := Qry.MarshalOptions;
-      Query.MaxRecords                := Qry.MaxRecords;
-      Query.Name                      := 'Thread'+IntToStr(Self.ThreadID)+Qry.Name;
-      Query.ParamCheck                := Qry.ParamCheck;
-      Query.Parameters                := Qry.Parameters;
-      Query.Prepared                  := Qry.Prepared;
-      Query.SQL                       := Qry.SQL;
-      Query.Tag                       := Qry.Tag;
-      Query.Connection                := Connection;
-      Query.DataSetField              := Qry.DataSetField;
-      Query.Open;
-      while Query.Fields.Count<>0 do begin
-        Query.Fields.Remove(Query.Fields.Fields[Query.Fields.Count-1]);
-      end;
-      for I:=0 to Qry.Parameters.Count - 1 do begin
-        Query.Parameters.Items[i]       := Qry.Parameters.Items[i];
-      end;
-      Query.Close;
-      for I:=0 to Qry.Fields.Count-1 do begin
-       // Criando campos, cópias da qry base
-       if Qry.Fields.Fields[I].ClassName = 'TSmallintField'
-         then Field := TSmallintField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TIntegerField'
-         then Field := TIntegerField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TStringField'
-         then Field := TStringField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TBooleanField'
-         then Field := TBooleanField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TFloatField'
-         then Field := TFloatField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TCurrencyField'
-         then Field := TCurrencyField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TWordField'
-         then Field := TWordField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TBCDField'
-         then Field := TBCDField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TDateField'
-         then Field := TDateField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TTimeField'
-         then Field := TTimeField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TDateTimeField'
-         then Field := TDateTimeField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TBytesField'
-         then Field := TBytesField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TVarBytesField'
-         then Field := TVarBytesField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TAutoIncField'
-         then Field := TAutoIncField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TBlobField'
-         then Field := TBlobField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TMemoField'
-         then Field := TMemoField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TGraphicField'
-         then Field := TGraphicField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TWideStringField'
-         then Field := TWideStringField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TLargeIntField'
-         then Field := TLargeIntField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TADTField'
-         then Field := TADTField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TArrayField'
-         then Field := TArrayField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TReferenceField'
-         then Field := TReferenceField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TDataSetField'
-         then Field := TDataSetField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TVariantField'
-         then Field := TVariantField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TInterfaceField'
-         then Field := TInterfaceField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TIDispatchField'
-         then Field := TIDispatchField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TGuidField'
-         then Field := TGuidField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TSQLTimeStampField'
-         then Field := TSQLTimeStampField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TFMTBcdField'
-         then Field := TFMTBcdField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TWideStringField'
-         then Field := TWideStringField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TWideMemoField'
-         then Field := TWideMemoField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TSQLTimeStampField'
-         then Field := TSQLTimeStampField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TLongWordField'
-         then Field := TLongWordField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TShortintField'
-         then Field := TShortintField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TExtendedField'
-         then Field := TExtendedField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TSQLTimeStampOffsetField'
-         then Field := TSQLTimeStampOffsetField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TAggregateField'
-         then Field := TAggregateField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TUnsignedAutoIncField'
-         then Field := TUnsignedAutoIncField.Create(FormMain)
-         else
-       if Qry.Fields.Fields[I].ClassName = 'TSingleField'
-         then Field := TSingleField.Create(FormMain);
-
-        Field.EditMask     := Qry.Fields.Fields[I].EditMask;
-        Field.DisplayWidth := Qry.Fields.Fields[I].DisplayWidth;
-        Field.FieldKind    := Qry.Fields.Fields[I].FieldKind;
-        Field.ReadOnly     := Qry.Fields.Fields[I].ReadOnly;
-        Field.Visible      := Qry.Fields.Fields[I].Visible;
-        Field.FieldName    := Qry.Fields.Fields[I].FieldName;
-        Field.OnValidate   := Qry.Fields.Fields[I].OnValidate;
-        Field.OnGetText    := Qry.Fields.Fields[I].OnGetText;
-        Field.OnSetText    := Qry.Fields.Fields[I].OnSetText;
-        Field.OnChange     := Qry.Fields.Fields[I].OnChange;
-        Field.DataSet      := TDataSet(Query);
-        if (Qry.Fields.Fields[I].ClassName = 'TFloatField')    or (Qry.Fields.Fields[I].ClassName = 'TBCDField') or
-           (Qry.Fields.Fields[I].ClassName = 'TExtendedField') or (Qry.Fields.Fields[I].ClassName = 'TSingleField')or
-           (Qry.Fields.Fields[I].ClassName = 'TFMTBCDField')   or (Qry.Fields.Fields[I].ClassName = 'TUnsignedAutoIncField') or
-           (Qry.Fields.Fields[I].ClassName = 'TAggregateField') // Todas os tipos de campos que possuem esse tipo de operação(currency)
-          then TFloatField(Field).currency   := TFloatField(Qry.Fields.Fields[I]).currency;
-      end
+  if pos('Assync',Qry.Name) <> 0 then begin
+    Try
+      ClonarQry(Qry);
+    except
+      Self.Synchronize(
+        Procedure begin
+          MyList.Connection.Connected := True;
+          Qry.Connection        := MyList.Connection;
+          MyList.Qry            := Qry;
+        end);
     end;
-  except
-    Query        := Qry;
-    Query.Connection := Connection;
-    Se ele não conseguir gerar a cópia ele usa a Query original mesmo(sujeito a problemas caso essa query for usada multiplas vezes ao mesmo tempo, mas como isso é raro não há problemas)
-  end;}
-  Query        := Qry;
-  Query.Connection := Connection;
-  //Vou recriar a funcionalidade de cópia de query em procedimento separado, com um parametro para decidir se ele vai fazer isso ou não
+  end
+  else begin
+    Self.Synchronize(
+      Procedure begin
+        MyList.Connection.Connected := True;
+        Qry.Connection        := MyList.Connection;
+        MyList.Qry            := Qry;
+      end);
+  end;
 
   if (DS <> nil) then begin
-    if DataSource = nil
-      then DataSource               := TDataSource.Create(Form1);
-    DataSource.AutoEdit             := DS.AutoEdit;
-    DataSource.DataSet              := TDataSet(Query);
-    DataSource.Name                 := 'Thread'+IntToStr(Self.ThreadID)+DS.Name;
-    DataSource.Tag                  := DS.Tag;
+    MyList.DS                      := TDataSource.Create(Form1);
+    MyList.DS.AutoEdit             := DS.AutoEdit;
+    MyList.DS.Name                 := 'Thread'+IntToStr(ID)+IntToStr(Self.ThreadID)+DS.Name;
+    MyList.DS.Tag                  := DS.Tag;
+    MyList.DS.DataSet              := TDataSet(MyList.Qry);
+    DS.Enabled                     := False;
   end;
-  Connection.Connected            := True;
+  MyList.Connection.Connected            := True;
+  MyListConnection.Add(MyList);
+end;
+procedure TThreadMain.ClonarQry(Qry: TAdoQuery);
+begin
+
 end;
 
 procedure TThreadMain.CancelarConsulta;
@@ -725,8 +576,8 @@ begin
         Procedure
         begin
           try
-            DataSource.Enabled := False;
-            Self.Connection.RollbackTrans;
+            SQLList.DS.Enabled := False;
+            SQLList.Connection.RollbackTrans;
           finally
             EmConsulta := False;
           end;
@@ -748,7 +599,7 @@ end;
 procedure TForm1.Button1Click(Sender: TObject);
 begin
   if not (Thread1.EmConsulta)
-    then Thread1.Open(DataSource1,Button1)
+    then Thread1.Open(DBGrid1.DataSource,Button1)
     else begin
       Thread1.CancelarConsulta;
       Button1.Caption := 'Consultar direto';
