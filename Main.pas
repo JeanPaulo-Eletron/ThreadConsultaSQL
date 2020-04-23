@@ -526,176 +526,187 @@ begin
     Connection.Provider             := ConnectionAux.Provider;
     Connection.Tag                  := ConnectionAux.Tag;
   end;
-  if (Qry <> nil) then begin
-    if Query = nil
-      then Query                    := TADOQuery.Create(Form1);
-    Query.AutoCalcFields            := Qry.AutoCalcFields;
-    Query.CacheSize                 := Qry.CacheSize;
-    Query.CommandTimeout            := Qry.CommandTimeout;
-    Query.ConnectionString          := Qry.ConnectionString;
-    Query.CursorLocation            := Qry.CursorLocation;
-    Query.CursorType                := Qry.CursorType;
-    Query.DataSource                := Qry.DataSource;
-    Query.EnableBCD                 := Qry.EnableBCD;
-    Query.ExecuteOptions            := Qry.ExecuteOptions;
-    Query.Filter                    := Qry.Filter;
-    Query.Filtered                  := Qry.Filtered;
-    Query.LockType                  := Qry.LockType;
-    Query.MarshalOptions            := Qry.MarshalOptions;
-    Query.MaxRecords                := Qry.MaxRecords;
-    Query.Name                      := 'Thread'+IntToStr(Self.ThreadID)+Qry.Name;
-    Query.ParamCheck                := Qry.ParamCheck;
-    Query.Parameters                := Qry.Parameters;
-    Query.Prepared                  := Qry.Prepared;
-    Query.SQL                       := Qry.SQL;
-    Query.Tag                       := Qry.Tag;
-    Query.Connection                := Connection;
-    Query.DataSetField              := Qry.DataSetField;
-    Query.Open;
-    while Query.Fields.Count<>0 do begin
-      Query.Fields.Remove(Query.Fields.Fields[Query.Fields.Count-1]);
-    end;
-    for I:=0 to Qry.Parameters.Count - 1 do begin
-      Query.Parameters.Items[i]       := Qry.Parameters.Items[i];
-    end;
-    Query.Close;
-    for I:=0 to Qry.Fields.Count-1 do begin
-     // Criando campos, cópias da qry base
-     if Qry.Fields.Fields[I].ClassName = 'TSmallintField'
-       then Field := TSmallintField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TIntegerField'
-       then Field := TIntegerField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TStringField'
-       then Field := TStringField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TBooleanField'
-       then Field := TBooleanField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TFloatField'
-       then Field := TFloatField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TCurrencyField'
-       then Field := TCurrencyField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TWordField'
-       then Field := TWordField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TBCDField'
-       then Field := TBCDField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TDateField'
-       then Field := TDateField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TTimeField'
-       then Field := TTimeField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TDateTimeField'
-       then Field := TDateTimeField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TBytesField'
-       then Field := TBytesField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TVarBytesField'
-       then Field := TVarBytesField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TAutoIncField'
-       then Field := TAutoIncField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TBlobField'
-       then Field := TBlobField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TMemoField'
-       then Field := TMemoField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TGraphicField'
-       then Field := TGraphicField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TWideStringField'
-       then Field := TWideStringField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TLargeIntField'
-       then Field := TLargeIntField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TADTField'
-       then Field := TADTField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TArrayField'
-       then Field := TArrayField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TReferenceField'
-       then Field := TReferenceField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TDataSetField'
-       then Field := TDataSetField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TVariantField'
-       then Field := TVariantField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TInterfaceField'
-       then Field := TInterfaceField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TIDispatchField'
-       then Field := TIDispatchField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TGuidField'
-       then Field := TGuidField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TSQLTimeStampField'
-       then Field := TSQLTimeStampField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TFMTBcdField'
-       then Field := TFMTBcdField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TWideStringField'
-       then Field := TWideStringField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TWideMemoField'
-       then Field := TWideMemoField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TSQLTimeStampField'
-       then Field := TSQLTimeStampField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TLongWordField'
-       then Field := TLongWordField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TShortintField'
-       then Field := TShortintField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TExtendedField'
-       then Field := TExtendedField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TSQLTimeStampOffsetField'
-       then Field := TSQLTimeStampOffsetField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TAggregateField'
-       then Field := TAggregateField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TUnsignedAutoIncField'
-       then Field := TUnsignedAutoIncField.Create(Form1)
-       else
-     if Qry.Fields.Fields[I].ClassName = 'TSingleField'
-       then Field := TSingleField.Create(Form1);
+  {
+  Try
+    if (Qry <> nil) then begin
+      if Query = nil
+        then Query                    := TADOQuery.Create(FormMain);
+      Query.AutoCalcFields            := Qry.AutoCalcFields;
+      Query.CacheSize                 := Qry.CacheSize;
+      Query.CommandTimeout            := Qry.CommandTimeout;
+      Query.ConnectionString          := Qry.ConnectionString;
+      Query.CursorLocation            := Qry.CursorLocation;
+      Query.CursorType                := Qry.CursorType;
+      Query.DataSource                := Qry.DataSource;
+      Query.EnableBCD                 := Qry.EnableBCD;
+      Query.ExecuteOptions            := Qry.ExecuteOptions;
+      Query.Filter                    := Qry.Filter;
+      Query.Filtered                  := Qry.Filtered;
+      Query.LockType                  := Qry.LockType;
+      Query.MarshalOptions            := Qry.MarshalOptions;
+      Query.MaxRecords                := Qry.MaxRecords;
+      Query.Name                      := 'Thread'+IntToStr(Self.ThreadID)+Qry.Name;
+      Query.ParamCheck                := Qry.ParamCheck;
+      Query.Parameters                := Qry.Parameters;
+      Query.Prepared                  := Qry.Prepared;
+      Query.SQL                       := Qry.SQL;
+      Query.Tag                       := Qry.Tag;
+      Query.Connection                := Connection;
+      Query.DataSetField              := Qry.DataSetField;
+      Query.Open;
+      while Query.Fields.Count<>0 do begin
+        Query.Fields.Remove(Query.Fields.Fields[Query.Fields.Count-1]);
+      end;
+      for I:=0 to Qry.Parameters.Count - 1 do begin
+        Query.Parameters.Items[i]       := Qry.Parameters.Items[i];
+      end;
+      Query.Close;
+      for I:=0 to Qry.Fields.Count-1 do begin
+       // Criando campos, cópias da qry base
+       if Qry.Fields.Fields[I].ClassName = 'TSmallintField'
+         then Field := TSmallintField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TIntegerField'
+         then Field := TIntegerField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TStringField'
+         then Field := TStringField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TBooleanField'
+         then Field := TBooleanField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TFloatField'
+         then Field := TFloatField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TCurrencyField'
+         then Field := TCurrencyField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TWordField'
+         then Field := TWordField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TBCDField'
+         then Field := TBCDField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TDateField'
+         then Field := TDateField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TTimeField'
+         then Field := TTimeField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TDateTimeField'
+         then Field := TDateTimeField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TBytesField'
+         then Field := TBytesField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TVarBytesField'
+         then Field := TVarBytesField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TAutoIncField'
+         then Field := TAutoIncField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TBlobField'
+         then Field := TBlobField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TMemoField'
+         then Field := TMemoField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TGraphicField'
+         then Field := TGraphicField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TWideStringField'
+         then Field := TWideStringField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TLargeIntField'
+         then Field := TLargeIntField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TADTField'
+         then Field := TADTField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TArrayField'
+         then Field := TArrayField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TReferenceField'
+         then Field := TReferenceField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TDataSetField'
+         then Field := TDataSetField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TVariantField'
+         then Field := TVariantField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TInterfaceField'
+         then Field := TInterfaceField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TIDispatchField'
+         then Field := TIDispatchField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TGuidField'
+         then Field := TGuidField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TSQLTimeStampField'
+         then Field := TSQLTimeStampField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TFMTBcdField'
+         then Field := TFMTBcdField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TWideStringField'
+         then Field := TWideStringField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TWideMemoField'
+         then Field := TWideMemoField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TSQLTimeStampField'
+         then Field := TSQLTimeStampField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TLongWordField'
+         then Field := TLongWordField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TShortintField'
+         then Field := TShortintField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TExtendedField'
+         then Field := TExtendedField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TSQLTimeStampOffsetField'
+         then Field := TSQLTimeStampOffsetField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TAggregateField'
+         then Field := TAggregateField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TUnsignedAutoIncField'
+         then Field := TUnsignedAutoIncField.Create(FormMain)
+         else
+       if Qry.Fields.Fields[I].ClassName = 'TSingleField'
+         then Field := TSingleField.Create(FormMain);
 
-      Field.EditMask     := Qry.Fields.Fields[I].EditMask;
-      Field.DisplayWidth := Qry.Fields.Fields[I].DisplayWidth;
-      Field.FieldKind    := Qry.Fields.Fields[I].FieldKind;
-      Field.ReadOnly     := Qry.Fields.Fields[I].ReadOnly;
-      Field.Visible      := Qry.Fields.Fields[I].Visible;
-      Field.FieldName    := Qry.Fields.Fields[I].FieldName;
-      Field.OnValidate   := Qry.Fields.Fields[I].OnValidate;
-      Field.OnGetText    := Qry.Fields.Fields[I].OnGetText;
-      Field.OnSetText    := Qry.Fields.Fields[I].OnSetText;
-      Field.OnChange     := Qry.Fields.Fields[I].OnChange;
-      Field.DataSet      := TDataSet(Query);
-      if (Qry.Fields.Fields[I].ClassName = 'TFloatField')    or (Qry.Fields.Fields[I].ClassName = 'TBCDField') or
-         (Qry.Fields.Fields[I].ClassName = 'TExtendedField') or (Qry.Fields.Fields[I].ClassName = 'TSingleField')or
-         (Qry.Fields.Fields[I].ClassName = 'TFMTBCDField')   or (Qry.Fields.Fields[I].ClassName = 'TUnsignedAutoIncField') or
-         (Qry.Fields.Fields[I].ClassName = 'TAggregateField') // Todas os tipos de campos que possuem esse tipo de operação(currency)
-        then TFloatField(Field).currency   := TFloatField(Qry.Fields.Fields[I]).currency;
-    end
-  end;
+        Field.EditMask     := Qry.Fields.Fields[I].EditMask;
+        Field.DisplayWidth := Qry.Fields.Fields[I].DisplayWidth;
+        Field.FieldKind    := Qry.Fields.Fields[I].FieldKind;
+        Field.ReadOnly     := Qry.Fields.Fields[I].ReadOnly;
+        Field.Visible      := Qry.Fields.Fields[I].Visible;
+        Field.FieldName    := Qry.Fields.Fields[I].FieldName;
+        Field.OnValidate   := Qry.Fields.Fields[I].OnValidate;
+        Field.OnGetText    := Qry.Fields.Fields[I].OnGetText;
+        Field.OnSetText    := Qry.Fields.Fields[I].OnSetText;
+        Field.OnChange     := Qry.Fields.Fields[I].OnChange;
+        Field.DataSet      := TDataSet(Query);
+        if (Qry.Fields.Fields[I].ClassName = 'TFloatField')    or (Qry.Fields.Fields[I].ClassName = 'TBCDField') or
+           (Qry.Fields.Fields[I].ClassName = 'TExtendedField') or (Qry.Fields.Fields[I].ClassName = 'TSingleField')or
+           (Qry.Fields.Fields[I].ClassName = 'TFMTBCDField')   or (Qry.Fields.Fields[I].ClassName = 'TUnsignedAutoIncField') or
+           (Qry.Fields.Fields[I].ClassName = 'TAggregateField') // Todas os tipos de campos que possuem esse tipo de operação(currency)
+          then TFloatField(Field).currency   := TFloatField(Qry.Fields.Fields[I]).currency;
+      end
+    end;
+  except
+    Query        := Qry;
+    Query.Connection := Connection;
+    Se ele não conseguir gerar a cópia ele usa a Query original mesmo(sujeito a problemas caso essa query for usada multiplas vezes ao mesmo tempo, mas como isso é raro não há problemas)
+  end;}
+  Query        := Qry;
+  Query.Connection := Connection;
+  //Vou recriar a funcionalidade de cópia de query em procedimento separado, com um parametro para decidir se ele vai fazer isso ou não
+
   if (DS <> nil) then begin
     if DataSource = nil
       then DataSource               := TDataSource.Create(Form1);
