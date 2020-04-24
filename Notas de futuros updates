@@ -3,6 +3,7 @@
 3.0
 :: Implementação de Sockets ::
 :: Implementação de chamadas remotas ::
+::: Estudar como já é feito com XML, RMI, RPC e DLL :::
 >>>>>>> Possivelmente 4.0
 Confere a condição cadastrada de tempos em tempos(em ambos os casos em paralelo), 
                                se passar lança as procedures cadastradas em ordem(pelo método Subscribe).
