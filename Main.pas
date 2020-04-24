@@ -45,7 +45,6 @@ private
     MyListProcTimerAssync: TList<TRecordProcedure>;
     QtdeTimers: Integer;
     MyListTimer: TList<TRecordProcedure>;
-    MyListTimerAssync: TList<TRecordProcedure>;
     ID : Integer;
     procedure Dispatcher;
     procedure WMProcGenerico(Msg: TMsg);
@@ -164,6 +163,7 @@ begin
     }
     while QtdeProcAsync >= (Cores.dwNumberOfProcessors - 1) do sleep(Rest);//melhorar para IO
     EmConsulta := true;
+    ID := ID + 1;
     try
       try
         case Msg.Message of
@@ -428,18 +428,18 @@ var
   Rest: NativeUInt;
 begin
   QtdeTimers := QtdeTimers + 1;
+  Rest := Msg.wParam;
 
   if Msg.lParam = 0
     then Procedimento  := MyListProcTimer.First.Procedimento
     else RProcedimento := MyListProcTimer.First.RProcedimento;
 
-  Rest := Msg.wParam;
   if Msg.lParam = 0
     then begin
       Aux.RProcedimento :=
         procedure begin
           if Terminated
-            then exit;
+            then Abort;
           QtdeProcAsync := QtdeProcAsync + 1;
           Procedimento;
           QtdeProcAsync := QtdeProcAsync - 1;
@@ -449,10 +449,10 @@ begin
       Aux.RProcedimento :=
         procedure begin
           if Terminated
-            then exit;
-          QtdeProcAsync := QtdeProcAsync - 1;
-          RProcedimento;
+            then Abort;
           QtdeProcAsync := QtdeProcAsync + 1;
+          RProcedimento;
+          QtdeProcAsync := QtdeProcAsync - 1;
         end;
     end;
   Aux.Tipo := Rest;
@@ -470,40 +470,52 @@ end;
 procedure TThreadMain.WMTIMERAssync(Msg: TMsg);
 var
   Aux: TRecordProcedure;
+  Procedimento:  TProcedure;
+  RProcedimento: TProc;
+  Rest: NativeUInt;
 begin
+  QtdeTimers := QtdeTimers + 1;
+  Rest := Msg.wParam;
+
   if Msg.lParam = 0
-    then Aux.Procedimento  := MyListProcTimerAssync.First.Procedimento
-    else Aux.RProcedimento := MyListProcTimerAssync.First.RProcedimento;
-  if MyListTimer = nil
-    then MyListTimerAssync := TList<TRecordProcedure>.Create;
-  ID := ID + 1;
-  Aux.ID := ID;
-  MyListTimerAssync.Add(Aux);
-  CreateAnonymousThread(
-    procedure
-    var
-      Rest: NativeUInt;
-      I:    Integer;
-      RProc: TProc;
-    begin
-      Rest := Msg.wParam;
-      for I := 0 to Length(Form1.Thread1.MyListTimerAssync.List) do if Form1.Thread1.MyListTimerAssync.List[I].ID = ID  then break;
-      RProc := Form1.Thread1.MyListTimerAssync.List[I].RProcedimento;
-      while true do begin
-        Sleep(Rest);
-        if Finished
-          then exit;
-        if Terminated
-          then break;
-        QtdeProcAsync := QtdeProcAsync + 1;
-        if Msg.lParam = 0
-          then Form1.Thread1.MyListTimerAssync.List[I].Procedimento
-          else RProc;
-        QtdeProcAsync := QtdeProcAsync - 1;
-      end;
-      MyListTimerAssync.Delete(I);
+    then Procedimento  := MyListProcTimerAssync.First.Procedimento
+    else RProcedimento := MyListProcTimerAssync.First.RProcedimento;
+
+  if Msg.lParam = 0
+    then begin
+      Aux.RProcedimento  := procedure
+                            begin
+                              if Terminated
+                                then Abort;
+                              CreateAnonymousThread(procedure begin
+                                                      QtdeProcAsync := QtdeProcAsync + 1;
+                                                      Procedimento;
+                                                      QtdeProcAsync := QtdeProcAsync - 1
+                                                    end).Start;
+                            end;
     end
-  ).Start;
+    else begin
+      Aux.RProcedimento := procedure
+                           begin
+                             if Terminated
+                               then Abort;
+                             CreateAnonymousThread( procedure
+                                                    begin
+                                                      QtdeProcAsync := QtdeProcAsync + 1;
+                                                      RProcedimento;
+                                                      QtdeProcAsync := QtdeProcAsync - 1
+                                                    end).Start;
+                           end;
+    end;
+  Aux.Tipo := Rest;
+  if MyListTimer = nil
+    then MyListTimer := TList<TRecordProcedure>.Create;
+  Synchronize(
+    procedure begin
+      TimerId   := SetTimer(0, QtdeTimers, Rest, @MyTimeout);
+      Aux.ID    := TimerID;
+      MyListTimer.Add(Aux);
+    end);// não async vai no main
   MyListProcTimerAssync.Delete(0);
 end;
 
