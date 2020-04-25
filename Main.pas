@@ -10,7 +10,8 @@ interface
 uses
     Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
     Dialogs, Db, Vcl.Grids, Vcl.DBGrids, Data.Win.ADODB, Vcl.StdCtrls,
-    System.Rtti, System.TypInfo, Generics.Collections, Vcl.ExtCtrls;
+    System.Rtti, System.TypInfo, Generics.Collections, Vcl.ExtCtrls,
+    Vcl.DBCtrls;
 
 const
     WM_OPEN                       = WM_USER + 1;
@@ -33,6 +34,8 @@ type
       RProcedimento : TProc;
       Tipo : Integer;
       ID   : Integer;
+      MetaDado : String;
+      SQLList  : TSQLList;
     end;
 type
     TThreadMain = class(TThread)
@@ -53,7 +56,8 @@ private
     procedure WMTIMER(Msg: TMsg);
     procedure WMTIMERAssync(Msg: TMsg);
     procedure PrepararRequisicaoConsulta(DS: TDataSource;Button: TButton);
-    procedure RelocarGrid(DS: TDataSource);
+    procedure DesvincularComponente(DS: TDataSource);
+    procedure VincularComponente(DS: TDataSource);
 protected
     Rest : Integer;
     SQLList: TSQLList;
@@ -184,22 +188,6 @@ begin
       Self.Execute;//Caso ocorra um erro tentar executar novamente.
     end;
   end
-end;
-
-procedure TThreadMain.RelocarGrid(DS: TDataSource);
-var
-  i: integer;
-  Form: TForm;
-  Qry:   TAdoQuery;
-begin
-  Qry:= TAdoQuery(DS.DataSet);
-  if pos('Assync',DS.Name) <> 0
-    then DS.DataSet := nil;
-  Form := TForm(Qry.Owner);
-  for i := 0 to (Form.ComponentCount - 1) do begin
-       if (Form.Components[i] is TDBGrid)  and (TDBGrid(Form.Components[i]).DataSource = DS)
-         then TDBGrid(Form.Components[i]).DataSource := SQLList.DS;
-  end;
 end;
 
 procedure TThreadMain.PrepararRequisicaoConsulta(DS: TDataSource; Button: TButton);
@@ -336,7 +324,6 @@ try
     SQLList.Qry.Close;
     SQLList.DS.Enabled := True;
     SQLList.Connection.BeginTrans;
-    RelocarGrid(List.DS);
     Button.Enabled := True;
   end
   );
@@ -351,6 +338,7 @@ try
       Button.Enabled := True;
     end;//é porque eu cancelei no meio
   finally
+    VincularComponente(List.DS);
     Button.Caption := 'Consultar direto';
     MyList.Remove(List);
     MyListConnection.Remove(SQLList);
@@ -370,6 +358,9 @@ begin
       Procedimento := MyListProc.first.RProcedimento;
       Procedimento;
     end;
+  if pos('Houve Nova Conexão;',MyListProc.First.MetaDado) <> 0
+    then DesvincularComponente(MyListProc.First.SQLList.DS); //Adaptado somente para 1 conexão por procedimento por enquanto
+
   MyListProc.Remove(MyListProc.First);
 end;
 
@@ -526,10 +517,20 @@ var
   Qry: TAdoQuery;
   ConnectionAux: TADOConnection;
   I : Integer;
+  RecordProcedure: TRecordProcedure;
  begin
   if MyListConnection = nil
     then MyListConnection := TList<TSQLList>.Create;
+  {
+  if Pos('Ativo;', MyListProc.first.MetaDado) <> 0
+    then begin
+      RecordProcedure := MyListProc.first;
+      RecordProcedure.MetaDado   := MyListProc.First.MetaDado + 'Houve Nova Conexão;';//Adaptado somente para 1 conexão por procedimento por enquanto
+      RecordProcedure.SQLList.DS := DS;
+    end;
+  }
   ID := ID + 1;
+  DesvincularComponente(DS);
   Qry := TAdoQuery(DS.DataSet);
   ConnectionAux := Qry.Connection;
   if ConnectionAux <> nil then begin
@@ -783,6 +784,51 @@ begin
     else Terminate;
 end;
 
+procedure TThreadMain.DesvincularComponente(DS: TDataSource);
+var
+  i: integer;
+  Form: TForm;
+  DSAux : TDataSource;
+begin
+  Form := TForm(DS.Owner);
+  for i := 0 to (Form.ComponentCount - 1) do begin
+    if (Form.Components[i] is TDBGrid)  and (TDBGrid(Form.Components[i]).DataSource = DS)
+      then begin
+        ID := ID + 1;
+        DSAux      := TDataSource.Create(Form1);
+        DSAux.Name := DS.Name+'INACTIVE'+IntToStr(ID);
+        TDBGrid(Form.Components[i]).DataSource := DSAux
+      end
+      else
+    if (Form.Components[i] is TDBMemo)  and (TDBMemo(Form.Components[i]).DataSource = DS)
+      then begin
+        ID := ID + 1;
+        DSAux      := TDataSource.Create(Form1);
+        DSAux.Name := DS.Name+'INACTIVE'+IntToStr(ID);
+        TDBMemo(Form.Components[i]).DataSource := DSAux;
+      end;
+  end;
+end;
+
+procedure TThreadMain.VincularComponente(DS: TDataSource);
+var
+  i: integer;
+  Form: TForm;
+  Qry:   TAdoQuery;
+begin
+  Qry:= TAdoQuery(DS.DataSet);
+  if pos('Assync',DS.Name) <> 0
+    then DS.DataSet := nil;
+  Form := TForm(Qry.Owner);
+  for i := 0 to (Form.ComponentCount - 1) do begin
+    if (Form.Components[i] is TDBGrid)  and (Copy(String(TDBGrid(Form.Components[i]).DataSource.Name),0,Pos('INACTIVE', String(TDBGrid(Form.Components[i]).DataSource.Name))-1) = DS.Name)
+      then TDBGrid(Form.Components[i]).DataSource := SQLList.DS
+      else
+    if (Form.Components[i] is TDBMemo)  and (Copy(String(TDBMemo(Form.Components[i]).DataSource.Name),0,Pos('INACTIVE', String(TDBMemo(Form.Components[i]).DataSource.Name))-1) = DS.Name)
+      then TDBMemo(Form.Components[i]).DataSource := SQLList.DS;
+  end;
+  //Criar em breve --> Vincular Todos Daquele Mesmo Ramo De Processos
+end;
 // ------------------- MAIN -------------------- //
 
 procedure TForm1.Button1Click(Sender: TObject);
