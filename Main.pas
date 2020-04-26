@@ -58,6 +58,7 @@ private
     procedure PrepararRequisicaoConsulta(DS: TDataSource;Button: TButton);
     procedure DesvincularComponente(DS: TDataSource);
     procedure VincularComponente(DS: TDataSource);
+    procedure NovaConexao(DS: TDataSource);overload;
 protected
     Rest : Integer;
     SQLList: TSQLList;
@@ -81,8 +82,12 @@ public
     procedure ProcedimentoGenerico(Procedimento: TProc);overload;
     procedure ProcedimentoGenericoAssync(Procedimento: TProcedure);overload;
     procedure ProcedimentoGenericoAssync(Procedimento: TProc);overload;
+    procedure ProcedimentoGenerico(Procedimento: TProcedure; NomeProcedimento: String);overload;
+    procedure ProcedimentoGenerico(Procedimento: TProc; NomeProcedimento: String);overload;
+    procedure ProcedimentoGenericoAssync(Procedimento: TProcedure; NomeProcedimento: String);overload;
+    procedure ProcedimentoGenericoAssync(Procedimento: TProc; NomeProcedimento: String);overload;
     procedure CancelarConsulta;
-    procedure NovaConexao(DS: TDataSource);
+    procedure NovaConexao(DS: TDataSource; ProcedimentoOrigem: String);overload;
     procedure Kill;
     procedure ClonarQry(Qry: TAdoQuery);
 end;
@@ -136,7 +141,7 @@ var
    I: integer;
    Proc : TProc;
 begin
-  for I := 0 to Length(Form1.Thread1.MyListTimer.List) do if Form1.Thread1.MyListTimer.List[I].ID = idEvent  then break;
+  for I := 0 to Length(Form1.Thread1.MyListTimer.List) do if Form1.Thread1.MyListTimer.List[I].ID = Integer(idEvent) then break;
   Proc := Form1.Thread1.MyListTimer.List[I].RProcedimento;
   Proc;
 end;
@@ -147,6 +152,10 @@ procedure TThreadMain.Execute;
 begin
   Rest := 1;
   FreeOnTerminate := self.Finished;
+  if MyListProcWillProcAssync = nil
+    then MyListProcWillProcAssync := TList<TRecordProcedure>.Create;
+  if MyListProc = nil
+    then  MyListProc := TList<TRecordProcedure>.Create;
   while not Terminated do begin
     Dispatcher;
   end;
@@ -165,7 +174,7 @@ begin
       Threshold ---> Limiar   NODE X APACHE(LENTIDÃO).
       Inferno da DLL e CALLBACKS e usar promices fica mais simples.
     }
-    while QtdeProcAsync >= (Cores.dwNumberOfProcessors - 1) do sleep(Rest);//melhorar para IO
+    while QtdeProcAsync >= (Integer(Cores.dwNumberOfProcessors) - 1) do sleep(Rest);//melhorar para IO
     EmConsulta := true;
     ID := ID + 1;
     try
@@ -218,46 +227,66 @@ begin
   PostThreadMessage(ThreadID, WM_OPEN, 1, 0);
 end;
 
-procedure TThreadMain.ProcedimentoGenerico(Procedimento: TProcedure);
+procedure TThreadMain.ProcedimentoGenerico(Procedimento: TProcedure; NomeProcedimento: String);
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
-  if MyListProc = nil
-    then  MyListProc := TList<TRecordProcedure>.Create;
-  Self.RecordProcedure.Procedimento := Procedimento;
-  MyListProc.Add(Self.RecordProcedure);
+  RecordProcedure.Procedimento := Procedimento;
+  RecordProcedure.MetaDado     := RecordProcedure.MetaDado + NomeProcedimento + ';';
+  MyListProc.Add(RecordProcedure);
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICO, 0, 0);
 end;
 
-procedure TThreadMain.ProcedimentoGenerico(Procedimento: TProc);
+procedure TThreadMain.ProcedimentoGenerico(Procedimento: TProc; NomeProcedimento: String);
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
-  if MyListProc = nil
-    then  MyListProc := TList<TRecordProcedure>.Create;
   Self.RecordProcedure.RProcedimento := Procedimento;
+  RecordProcedure.MetaDado     := RecordProcedure.MetaDado + NomeProcedimento + ';';
   MyListProc.Add(Self.RecordProcedure);
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICO, 1, 0);
 end;
 
+procedure TThreadMain.ProcedimentoGenerico(Procedimento: TProcedure);
+begin
+  ProcedimentoGenerico(Procedimento,'');
+end;
+
+procedure TThreadMain.ProcedimentoGenerico(Procedimento: TProc);
+begin
+  ProcedimentoGenerico(Procedimento,'');
+end;
+
 procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProcedure);
+begin
+  ProcedimentoGenericoAssync(Procedimento,'');
+end;
+
+procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProc);
+begin
+  ProcedimentoGenericoAssync(Procedimento,'');
+end;
+
+procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProcedure; NomeProcedimento: String);
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
   if MyListProcAssync = nil
     then  MyListProcAssync := TList<TRecordProcedure>.Create;
   Self.RecordProcedure.Procedimento := Procedimento;
+  RecordProcedure.MetaDado     := RecordProcedure.MetaDado + NomeProcedimento + ';';
   MyListProcAssync.Add(Self.RecordProcedure);
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 0, 0);
 end;
 
-procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProc);
+procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProc; NomeProcedimento: String);
 begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
   if MyListProcAssync = nil
     then  MyListProcAssync := TList<TRecordProcedure>.Create;
   Self.RecordProcedure.RProcedimento := Procedimento;
+  RecordProcedure.MetaDado     := RecordProcedure.MetaDado + NomeProcedimento + ';';
   MyListProcAssync.Add(Self.RecordProcedure);
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 1, 0);
 end;
@@ -369,8 +398,6 @@ var
   Procedimento: TProc;
   Aux: TRecordProcedure;
 begin
-  if MyListProcWillProcAssync = nil
-    then MyListProcWillProcAssync := TList<TRecordProcedure>.Create;
   Aux := MyListProcAssync.First;
   QtdeProcAsync := QtdeProcAsync + 1;
   ID := ID + 1;
@@ -511,6 +538,11 @@ begin
 end;
 
 procedure TThreadMain.NovaConexao(DS: TDataSource);
+begin
+  NovaConexao(DS,'');
+end;
+
+procedure TThreadMain.NovaConexao(DS: TDataSource; ProcedimentoOrigem: String);
 // é importante criar uma nova conexão ao acessar o banco pra não dar erro de ter duas consultas
 // retornando resultado ao mesmo tempo, e também para permitir o rollback sem afetar as outras consultas...
 var
@@ -521,14 +553,21 @@ var
  begin
   if MyListConnection = nil
     then MyListConnection := TList<TSQLList>.Create;
-  {
-  if Pos('Ativo;', MyListProc.first.MetaDado) <> 0
+  for I := 0 to Length(Form1.Thread1.MyListProc.List)-1 do
+  if Pos(ProcedimentoOrigem, Form1.Thread1.MyListTimer.List[I].MetaDado) <> 0
     then begin
-      RecordProcedure := MyListProc.first;
-      RecordProcedure.MetaDado   := MyListProc.First.MetaDado + 'Houve Nova Conexão;';//Adaptado somente para 1 conexão por procedimento por enquanto
-      RecordProcedure.SQLList.DS := DS;
+      RecordProcedure := Form1.Thread1.MyListProc.List[I];
+      RecordProcedure.MetaDado   := MyListProc.First.MetaDado + 'Houve Nova Conexão;';
+      RecordProcedure.SQLList.DS := DS;//Adaptado somente para 1 conexão por procedimento por enquanto
     end;
-  }
+  for I := 0 to Length(Form1.Thread1.MyListProcWillProcAssync.List)-1 do
+  if Pos(ProcedimentoOrigem, Form1.Thread1.MyListProcWillProcAssync.List[I].MetaDado) <> 0
+    then begin
+      RecordProcedure := Form1.Thread1.MyListProcWillProcAssync.List[I];
+      RecordProcedure.MetaDado   := MyListProc.First.MetaDado + 'Houve Nova Conexão;';
+      RecordProcedure.SQLList.DS := DS;//Adaptado somente para 1 conexão por procedimento por enquanto
+    end;
+
   ID := ID + 1;
   DesvincularComponente(DS);
   Qry := TAdoQuery(DS.DataSet);
@@ -853,7 +892,7 @@ end;
 
 procedure TForm1.Button3Click(Sender: TObject);
 begin
-  Thread1.ProcedimentoGenerico(Consulta);
+  Thread1.ProcedimentoGenerico(Consulta,'Consulta');
 end;
 
 procedure TForm1.Button4Click(Sender: TObject);
