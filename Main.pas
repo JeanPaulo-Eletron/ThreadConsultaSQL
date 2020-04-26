@@ -35,7 +35,8 @@ type
       Tipo : Integer;
       ID   : Integer;
       MetaDado : String;
-      SQLList  : TSQLList;
+      NomeProcedimento : String;
+      DSList  : TList<TDataSource>;
     end;
 type
     TThreadMain = class(TThread)
@@ -232,7 +233,8 @@ begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
   RecordProcedure.Procedimento := Procedimento;
-  RecordProcedure.MetaDado     := RecordProcedure.MetaDado + NomeProcedimento + ';';
+  RecordProcedure.NomeProcedimento := NomeProcedimento;
+  RecordProcedure.DSList := TList<TDataSource>.Create;
   MyListProc.Add(RecordProcedure);
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICO, 0, 0);
 end;
@@ -242,7 +244,8 @@ begin
   if NaoPermitirFilaRequisicao and EmConsulta
     then exit;
   Self.RecordProcedure.RProcedimento := Procedimento;
-  RecordProcedure.MetaDado     := RecordProcedure.MetaDado + NomeProcedimento + ';';
+  RecordProcedure.NomeProcedimento := NomeProcedimento;
+  RecordProcedure.DSList := TList<TDataSource>.Create;
   MyListProc.Add(Self.RecordProcedure);
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICO, 1, 0);
 end;
@@ -274,7 +277,8 @@ begin
   if MyListProcAssync = nil
     then  MyListProcAssync := TList<TRecordProcedure>.Create;
   Self.RecordProcedure.Procedimento := Procedimento;
-  RecordProcedure.MetaDado     := RecordProcedure.MetaDado + NomeProcedimento + ';';
+  RecordProcedure.NomeProcedimento := NomeProcedimento;
+  RecordProcedure.DSList := TList<TDataSource>.Create;
   MyListProcAssync.Add(Self.RecordProcedure);
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 0, 0);
 end;
@@ -286,7 +290,8 @@ begin
   if MyListProcAssync = nil
     then  MyListProcAssync := TList<TRecordProcedure>.Create;
   Self.RecordProcedure.RProcedimento := Procedimento;
-  RecordProcedure.MetaDado     := RecordProcedure.MetaDado + NomeProcedimento + ';';
+  RecordProcedure.NomeProcedimento := NomeProcedimento;
+  RecordProcedure.DSList := TList<TDataSource>.Create;
   MyListProcAssync.Add(Self.RecordProcedure);
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 1, 0);
 end;
@@ -378,18 +383,20 @@ end;
 procedure TThreadMain.WMProcGenerico(Msg: TMsg);
 var
   Procedimento: TProc;
+  I: Integer;
+  RecordProcedure: TRecordProcedure;
 begin
+  RecordProcedure := MyListProc.First;
   if Integer(Msg.wParam) = 0
     then begin
-      MyListProc.first.Procedimento;
+      RecordProcedure.Procedimento;
     end
     else begin
-      Procedimento := MyListProc.first.RProcedimento;
+      Procedimento := RecordProcedure.RProcedimento;
       Procedimento;
     end;
-  if pos('Houve Nova Conexão;',MyListProc.First.MetaDado) <> 0
-    then DesvincularComponente(MyListProc.First.SQLList.DS); //Adaptado somente para 1 conexão por procedimento por enquanto
-
+  RecordProcedure.Procedimento;
+  for I := 0 to RecordProcedure.DSList.Count - 1 do DesvincularComponente(RecordProcedure.DSList.List[I]);
   MyListProc.Remove(MyListProc.First);
 end;
 
@@ -409,21 +416,22 @@ begin
       CreateAnonymousThread(
         procedure
         var
-          I : Integer;
+          I, J : Integer;
         begin
           for I := 0 to Length(Form1.Thread1.MyListProcWillProcAssync.List) do if Form1.Thread1.MyListProcWillProcAssync.List[I].ID = ID  then break;
           MyListProcWillProcAssync.List[I].Procedimento;
           if Self.Finished
             then exit;
           QtdeProcAsync := QtdeProcAsync - 1;
-          MyListProcWillProcAssync.Delete(0);
+          for J := 0 to MyListProcWillProcAssync.List[I].DSList.Count - 1 do DesvincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
+          MyListProcWillProcAssync.Delete(I);
         end).Start;
     end
     else begin
       CreateAnonymousThread(
         procedure
         var
-          I : Integer;
+          I, J : Integer;
         begin
           for I := 0 to Length(Form1.Thread1.MyListProcWillProcAssync.List) do if Form1.Thread1.MyListProcWillProcAssync.List[I].ID = ID  then break;
           Procedimento := Form1.Thread1.MyListProcWillProcAssync.List[I].RProcedimento;
@@ -431,7 +439,8 @@ begin
           if Self.Finished
             then exit;
           QtdeProcAsync := QtdeProcAsync - 1;
-          MyListProcWillProcAssync.Delete(0);
+          for J := 0 to MyListProcWillProcAssync.List[I].DSList.Count - 1 do DesvincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
+          MyListProcWillProcAssync.Delete(I);
         end
       ).Start;
     end;
@@ -553,19 +562,28 @@ var
  begin
   if MyListConnection = nil
     then MyListConnection := TList<TSQLList>.Create;
+
   for I := 0 to Length(Form1.Thread1.MyListProc.List)-1 do
   if Pos(ProcedimentoOrigem, Form1.Thread1.MyListTimer.List[I].MetaDado) <> 0
     then begin
-      RecordProcedure := Form1.Thread1.MyListProc.List[I];
-      RecordProcedure.MetaDado   := MyListProc.First.MetaDado + 'Houve Nova Conexão;';
-      RecordProcedure.SQLList.DS := DS;//Adaptado somente para 1 conexão por procedimento por enquanto
+      Synchronize(
+        Procedure
+        begin
+          RecordProcedure                 := Form1.Thread1.MyListProc.List[I];
+          RecordProcedure.MetaDado        := MyListProc.First.MetaDado + 'Houve Nova Conexão;';
+          RecordProcedure.DSList.Add(DS);
+        end);
     end;
   for I := 0 to Length(Form1.Thread1.MyListProcWillProcAssync.List)-1 do
   if Pos(ProcedimentoOrigem, Form1.Thread1.MyListProcWillProcAssync.List[I].MetaDado) <> 0
     then begin
-      RecordProcedure := Form1.Thread1.MyListProcWillProcAssync.List[I];
-      RecordProcedure.MetaDado   := MyListProc.First.MetaDado + 'Houve Nova Conexão;';
-      RecordProcedure.SQLList.DS := DS;//Adaptado somente para 1 conexão por procedimento por enquanto
+      Synchronize(
+        Procedure
+        begin
+          RecordProcedure                 := Form1.Thread1.MyListProcWillProcAssync.List[I];
+          RecordProcedure.MetaDado        := MyListProc.First.MetaDado + 'Houve Nova Conexão;';
+          RecordProcedure.DSList.Add(DS);
+        end);
     end;
 
   ID := ID + 1;
