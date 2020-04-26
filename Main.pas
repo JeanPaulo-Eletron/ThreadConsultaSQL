@@ -423,7 +423,7 @@ begin
           if Self.Finished
             then exit;
           QtdeProcAsync := QtdeProcAsync - 1;
-          for J := 0 to MyListProcWillProcAssync.List[I].DSList.Count - 1 do DesvincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
+          for J := 0 to MyListProcWillProcAssync.List[I].DSList.Count - 1 do VincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
           MyListProcWillProcAssync.Delete(I);
         end).Start;
     end
@@ -439,7 +439,7 @@ begin
           if Self.Finished
             then exit;
           QtdeProcAsync := QtdeProcAsync - 1;
-          for J := 0 to MyListProcWillProcAssync.List[I].DSList.Count - 1 do DesvincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
+          for J := 0 to MyListProcWillProcAssync.List[I].DSList.Count - 1 do VincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
           MyListProcWillProcAssync.Delete(I);
         end
       ).Start;
@@ -564,7 +564,7 @@ var
     then MyListConnection := TList<TSQLList>.Create;
 
   for I := 0 to Length(Form1.Thread1.MyListProc.List)-1 do
-  if Pos(ProcedimentoOrigem, Form1.Thread1.MyListTimer.List[I].MetaDado) <> 0
+  if Pos(ProcedimentoOrigem, Form1.Thread1.MyListProc.List[I].NomeProcedimento) <> 0
     then begin
       Synchronize(
         Procedure
@@ -575,13 +575,13 @@ var
         end);
     end;
   for I := 0 to Length(Form1.Thread1.MyListProcWillProcAssync.List)-1 do
-  if Pos(ProcedimentoOrigem, Form1.Thread1.MyListProcWillProcAssync.List[I].MetaDado) <> 0
+  if Pos(ProcedimentoOrigem, Form1.Thread1.MyListProcWillProcAssync.List[I].NomeProcedimento) <> 0
     then begin
       Synchronize(
         Procedure
         begin
           RecordProcedure                 := Form1.Thread1.MyListProcWillProcAssync.List[I];
-          RecordProcedure.MetaDado        := MyListProc.First.MetaDado + 'Houve Nova Conexão;';
+          RecordProcedure.MetaDado        := RecordProcedure.MetaDado + 'Houve Nova Conexão;';
           RecordProcedure.DSList.Add(DS);
         end);
     end;
@@ -910,7 +910,7 @@ end;
 
 procedure TForm1.Button3Click(Sender: TObject);
 begin
-  Thread1.ProcedimentoGenerico(Consulta,'Consulta');
+  Thread1.ProcedimentoGenericoAssync(Consulta,'Consulta');
 end;
 
 procedure TForm1.Button4Click(Sender: TObject);
@@ -957,28 +957,29 @@ begin
 end;
 
 procedure TForm1.Consulta;
+var
+  SQLList: TSQLList;
 begin
   try
-    Thread1.NovaConexao(DataSource1);
-    Thread1.Query.Connection := Thread1.Connection;
-    Thread1.Query.Close;
-    Thread1.Connection.Connected := True;
-    Self.DBGrid1.DataSource := Thread1.DataSource;
-    Thread1.Connection.BeginTrans;
+    Thread1.NovaConexao(DataSource1,'Consulta');
+    SQLList := Thread1.MyListConnection.Last;
+    SQLList.Qry.Close;
+    SQLList.Connection.Connected := True;
+//    SQLList.Connection.BeginTrans;
     Button3.Visible := False;
-    Thread1.Query.Open;
+    SQLList.Qry.Open;
+    {
     Thread1.Synchronize(
     procedure
     begin
       if Thread1.EmConsulta
         then Thread1.Connection.CommitTrans
         else begin
-          Thread1.Query.Close;
-          Thread1.DataSource.Enabled := True;
+          SQLList.Qry.Close;
           Thread1.EmConsulta := False;
         end;//é porque eu cancelei no meio
     end
-    );
+    );}
   finally
     Button3.Enabled := True;
     Button3.Visible := True;
