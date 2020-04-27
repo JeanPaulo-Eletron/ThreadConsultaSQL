@@ -12,6 +12,6 @@ begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
   TStyleManager.TrySetStyle('Sapphire Kamri');
-  Application.CreateForm(TForm1, Form1);
+  Application.CreateForm(TFormMain, FormMain);
   Application.Run;
 end.

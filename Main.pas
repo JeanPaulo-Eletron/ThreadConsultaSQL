@@ -1,8 +1,10 @@
 ﻿//Feito por: Jean Paulo Athanazio De Mei
-//Coloque Assync no nome do componente para torna-lo Utilizavél por várias threads
-//ao mesmo tempo, não colocando ele só pode ser utilizado por uma thread por vez.
-//com o assync por enquanto se deve colocar o DS da grid não o DS diretamente, irei
-//corrigir esse problema em breve.
+//Timer ainda não está adaptado para usar consultas
+{     Anotações:
+      Bloqueada ---> verificar se threads estão bloqueada, para atender sobe demanda. ---> Monitor(Para aumentar a qtde sobe demanda """(Cores.dwNumberOfProcessors - 1) + IdlenessIndex(Uma expressão matemática logaritma baseada na memoria ram e no numero de cores[Uso intensivo de CPU, Uso intensivo de HD --> Por meta dados])""")
+      Threshold ---> Limiar   NODE X APACHE(LENTIDÃO).
+      Inferno da DLL e CALLBACKS e usar promices fica mais simples.
+}
 unit Main;
 
 interface
@@ -17,8 +19,8 @@ const
     WM_OPEN                       = WM_USER + 1;
     WM_PROCEDIMENTOGENERICO       = WM_USER + 2;
     WM_PROCEDIMENTOGENERICOASSYNC = WM_USER + 3;
-    WM_TIMERP                     = WM_USER + 4;
-    WM_TIMERASSYNC                = WM_USER + 5;
+    WM_TIMERTHREAD                = WM_USER + 4;
+    WM_TIMERTHREADASSYNC          = WM_USER + 5;
     WM_TERMINATE                  = WM_USER + 6;
 type
     TProcedure        = Procedure of object;
@@ -34,7 +36,6 @@ type
       RProcedimento : TProc;
       Tipo : Integer;
       ID   : Integer;
-      MetaDado : String;
       NomeProcedimento : String;
       DSList  : TList<TDataSource>;
       SQLList: TSQLList;
@@ -84,7 +85,7 @@ public
     procedure CancelarConsulta(ProcedimentoOrigem: String);
 end;
 
-TForm1 = class(TForm)
+TFormMain = class(TForm)
     Query1: TADOQuery;
     Button3: TButton;
     ADOConnection1: TADOConnection;
@@ -113,7 +114,7 @@ public
     procedure Synchronize(AThreadProc: TProc; Thread: TThread);overload;
 end;
 var
-  Form1: TForm1;
+  FormMain: TFormMain;
   Timerid: UINT;
 implementation
 
@@ -126,8 +127,8 @@ var
    I: integer;
    Proc : TProc;
 begin
-  for I := 0 to Length(Form1.Thread1.MyListTimer.List) do if Form1.Thread1.MyListTimer.List[I].ID = Integer(idEvent) then break;
-  Proc := Form1.Thread1.MyListTimer.List[I].RProcedimento;
+  for I := 0 to Length(FormMain.Thread1.MyListTimer.List) do if FormMain.Thread1.MyListTimer.List[I].ID = Integer(idEvent) then break;
+  Proc := FormMain.Thread1.MyListTimer.List[I].RProcedimento;
   Proc;
 end;
 
@@ -154,11 +155,6 @@ begin
   GetSystemInfo(Cores);
   if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then begin
     Sleep(Rest);
-    {
-      Bloqueada ---> verificar se threads estão bloqueada, para atender sobe demanda. ---> Monitor(Para aumentar a qtde sobe demanda """(Cores.dwNumberOfProcessors - 1) + IdlenessIndex(Uma expressão matemática logaritma baseada na memoria ram e no numero de cores[Uso intensivo de CPU, Uso intensivo de HD --> Por meta dados])""")
-      Threshold ---> Limiar   NODE X APACHE(LENTIDÃO).
-      Inferno da DLL e CALLBACKS e usar promices fica mais simples.
-    }
     while QtdeProcAsync >= (Integer(Cores.dwNumberOfProcessors) - 1) do sleep(Rest);//melhorar para IO
     EmConsulta := true;
     ID := ID + 1;
@@ -166,18 +162,18 @@ begin
       try
         case Msg.Message of
           WM_PROCEDIMENTOGENERICOASSYNC: WMProcGenericoAssync(Msg);
-          WM_TIMERP:                     WMTIMER(Msg);
-          WM_TIMERASSYNC:                WMTIMERAssync(Msg);
+          WM_TIMERTHREAD:                     WMTIMER(Msg);
+          WM_TIMERTHREADASSYNC:                WMTIMERAssync(Msg);
           WM_TIMER:                      MyTimeout(Msg.hwnd,Msg.message,Msg.wParam,Msg.lParam);
           WM_DESTROY:                    Destroy;
           WM_TERMINATE:                  Terminate;
         end;
       finally
         EmConsulta := false;
-        PeekMessage(Msg, 0, 0, 0, PM_REMOVE);//remove última mensagem
+        PeekMessage(Msg, 0, 0, 0, PM_REMOVE);
       end;
     except
-      Self.Execute;//Caso ocorra um erro tentar executar novamente.
+      Self.Execute;
     end;
   end
 end;
@@ -242,7 +238,7 @@ begin
     then  MyListProcTimer := TList<TRecordProcedure>.Create;
   Self.RecordProcedure.Procedimento := Procedimento;
   MyListProcTimer.Add(Self.RecordProcedure);
-  PostThreadMessage(ThreadID, WM_TIMERP, Rest, 0);
+  PostThreadMessage(ThreadID, WM_TIMERTHREAD, Rest, 0);
 end;
 
 procedure TThreadMain.Timer(Rest: NativeUInt; Procedimento: TProc);
@@ -253,7 +249,7 @@ begin
     then  MyListProcTimer := TList<TRecordProcedure>.Create;
   Self.RecordProcedure.RProcedimento := Procedimento;
   MyListProcTimer.Add(Self.RecordProcedure);
-  PostThreadMessage(ThreadID, WM_TIMERP, Rest, 1);
+  PostThreadMessage(ThreadID, WM_TIMERTHREAD, Rest, 1);
 end;
 
 procedure TThreadMain.TimerAssync(Rest: NativeUInt; Procedimento: TProcedure);
@@ -264,7 +260,7 @@ begin
     then  MyListProcTimerAssync := TList<TRecordProcedure>.Create;
   Self.RecordProcedure.Procedimento := Procedimento;
   MyListProcTimerAssync.Add(Self.RecordProcedure);
-  PostThreadMessage(ThreadID, WM_TIMERASSYNC, Rest, 0);
+  PostThreadMessage(ThreadID, WM_TIMERTHREADASSYNC, Rest, 0);
 end;
 
 procedure TThreadMain.TimerAssync(Rest: NativeUInt; Procedimento: TProc);
@@ -275,7 +271,7 @@ begin
     then  MyListProcTimerAssync := TList<TRecordProcedure>.Create;
   Self.RecordProcedure.RProcedimento := Procedimento;
   MyListProcTimerAssync.Add(Self.RecordProcedure);
-  PostThreadMessage(ThreadID, WM_TIMERASSYNC, Rest, 1);
+  PostThreadMessage(ThreadID, WM_TIMERTHREADASSYNC, Rest, 1);
 end;
 
 procedure TThreadMain.WMProcGenericoAssync(Msg: TMsg);
@@ -288,7 +284,6 @@ begin
   ID := ID + 1;
   Aux.ID := ID;
   MyListProcWillProcAssync.Add(Aux);
-  //Ele deve esperar os outros processos assyncronos acabarem para poder executar, caso o contr�rio perde a eficiencia.
   if Integer(Msg.wParam) = 0
     then begin
       CreateAnonymousThread(
@@ -296,7 +291,7 @@ begin
         var
           I, J : Integer;
         begin
-          for I := 0 to Length(Form1.Thread1.MyListProcWillProcAssync.List) do if Form1.Thread1.MyListProcWillProcAssync.List[I].ID = ID  then break;
+          for I := 0 to Length(FormMain.Thread1.MyListProcWillProcAssync.List) do if FormMain.Thread1.MyListProcWillProcAssync.List[I].ID = ID  then break;
           MyListProcWillProcAssync.List[I].Procedimento;
           if Self.Finished
             then exit;
@@ -311,8 +306,8 @@ begin
         var
           I, J : Integer;
         begin
-          for I := 0 to Length(Form1.Thread1.MyListProcWillProcAssync.List) do if Form1.Thread1.MyListProcWillProcAssync.List[I].ID = ID  then break;
-          Procedimento := Form1.Thread1.MyListProcWillProcAssync.List[I].RProcedimento;
+          for I := 0 to Length(FormMain.Thread1.MyListProcWillProcAssync.List) do if FormMain.Thread1.MyListProcWillProcAssync.List[I].ID = ID  then break;
+          Procedimento := FormMain.Thread1.MyListProcWillProcAssync.List[I].RProcedimento;
           Procedimento;
           if Self.Finished
             then exit;
@@ -368,7 +363,7 @@ begin
       TimerId   := SetTimer(0, QtdeTimers, Rest, @MyTimeout);
       Aux.ID    := TimerID;
       MyListTimer.Add(Aux);
-    end);// não async vai no main
+    end);
   MyListProcTimer.Delete(0);
 end;
 
@@ -444,7 +439,7 @@ var
   Qry := TAdoQuery(DS.DataSet);
   ConnectionAux := Qry.Connection;
   if ConnectionAux <> nil then begin
-    SQLList.Connection                      := TADOConnection.Create(Form1);
+    SQLList.Connection                      := TADOConnection.Create(FormMain);
     SQLList.Connection.ConnectionString     := ConnectionAux.ConnectionString;
     SQLList.Connection.ConnectionTimeout    := ConnectionAux.ConnectionTimeout;
     SQLList.Connection.ConnectOptions       := ConnectionAux.ConnectOptions;
@@ -468,32 +463,30 @@ var
       SQLList.DS := DS;
       SQLList.DS.Enabled := True;
     end);
-  for I := 0 to Length(Form1.Thread1.MyListProc.List)-1 do
-  if ProcedimentoOrigem = Form1.Thread1.MyListProc.List[I].NomeProcedimento
+  for I := 0 to Length(FormMain.Thread1.MyListProc.List)-1 do
+  if ProcedimentoOrigem = FormMain.Thread1.MyListProc.List[I].NomeProcedimento
     then begin
       Synchronize(
         Procedure
         begin
-          RecordProcedure                  := Form1.Thread1.MyListProc.ExtractAt(I);
-          RecordProcedure.MetaDado         := MyListProc.First.MetaDado + 'Houve Nova Conexão;';
+          RecordProcedure                  := FormMain.Thread1.MyListProc.ExtractAt(I);
           RecordProcedure.DSList.Add(DS);
           RecordProcedure.SQLList          := SQLList;
           RecordProcedure.EmConsulta := True;
-          Form1.Thread1.MyListProc.Insert(I, RecordProcedure);
+          FormMain.Thread1.MyListProc.Insert(I, RecordProcedure);
         end);
     end;
-  for I := 0 to Length(Form1.Thread1.MyListProcWillProcAssync.List)-1 do
-  if ProcedimentoOrigem = Form1.Thread1.MyListProcWillProcAssync.List[I].NomeProcedimento
+  for I := 0 to Length(FormMain.Thread1.MyListProcWillProcAssync.List)-1 do
+  if ProcedimentoOrigem = FormMain.Thread1.MyListProcWillProcAssync.List[I].NomeProcedimento
     then begin
       Synchronize(
         Procedure
         begin
-          RecordProcedure                 := Form1.Thread1.MyListProcWillProcAssync.ExtractAt(I);
-          RecordProcedure.MetaDado        := RecordProcedure.MetaDado + 'Houve Nova Conexão;';
+          RecordProcedure                 := FormMain.Thread1.MyListProcWillProcAssync.ExtractAt(I);
           RecordProcedure.DSList.Add(DS);
           RecordProcedure.SQLList         := SQLList;
           RecordProcedure.EmConsulta := True;
-          Form1.Thread1.MyListProcWillProcAssync.Insert(I, RecordProcedure);
+          FormMain.Thread1.MyListProcWillProcAssync.Insert(I, RecordProcedure);
         end);
     end;
   Result := RecordProcedure;
@@ -503,21 +496,21 @@ procedure TThreadMain.CancelarConsulta(ProcedimentoOrigem: String);
 var
   I: Integer;
 begin
-  for I := 0 to Form1.Thread1.MyListProcWillProcAssync.Count - 1 do
-  if Form1.Thread1.MyListProcWillProcAssync.Items[I].NomeProcedimento = ProcedimentoOrigem then begin
-    if Form1.Thread1.MyListProcWillProcAssync.Items[I].EmConsulta then begin
+  for I := 0 to FormMain.Thread1.MyListProcWillProcAssync.Count - 1 do
+  if FormMain.Thread1.MyListProcWillProcAssync.Items[I].NomeProcedimento = ProcedimentoOrigem then begin
+    if FormMain.Thread1.MyListProcWillProcAssync.Items[I].EmConsulta then begin
       Synchronize(
         Procedure
         var
           Procedimento : TRecordProcedure;
         begin
           try
-            Procedimento := Form1.Thread1.MyListProcWillProcAssync.ExtractAt(I);
+            Procedimento := FormMain.Thread1.MyListProcWillProcAssync.ExtractAt(I);
             Procedimento.SQLList.DS.Enabled := False;
             Procedimento.SQLList.Connection.RollbackTrans;
           finally
             Procedimento.EmConsulta := False;
-            Form1.Thread1.MyListProcWillProcAssync.Insert(I, Procedimento);
+            FormMain.Thread1.MyListProcWillProcAssync.Insert(I, Procedimento);
           end;
         end
       );
@@ -544,7 +537,7 @@ begin
     if (Form.Components[i] is TDBGrid)  and (TDBGrid(Form.Components[i]).DataSource = DS)
       then begin
         ID := ID + 1;
-        DSAux      := TDataSource.Create(Form1);
+        DSAux      := TDataSource.Create(FormMain);
         DSAux.Name := DS.Name+'INACTIVE'+IntToStr(ID);
         Synchronize(Procedure begin TDBGrid(Form.Components[i]).DataSource := DSAux end);
       end
@@ -552,7 +545,7 @@ begin
     if (Form.Components[i] is TDBMemo)  and (TDBMemo(Form.Components[i]).DataSource = DS)
       then begin
         ID := ID + 1;
-        DSAux      := TDataSource.Create(Form1);
+        DSAux      := TDataSource.Create(FormMain);
         DSAux.Name := DS.Name+'INACTIVE'+IntToStr(ID);
         Synchronize(Procedure begin TDBMemo(Form.Components[i]).DataSource := DSAux end);
       end;
@@ -580,21 +573,20 @@ begin
         Synchronize(procedure begin TDBMemo(Form.Components[i]).DataSource := DS end);
       end
   end;
-  //Criar em breve --> Vincular Todos Daquele Mesmo Ramo De Processos
 end;
 // ------------------- MAIN -------------------- //
 
-procedure TForm1.Button3Click(Sender: TObject);
+procedure TFormMain.Button3Click(Sender: TObject);
 begin
   Thread1.ProcedimentoGenericoAssync(Consulta,'Consulta');
 end;
 
-procedure TForm1.Button4Click(Sender: TObject);
+procedure TFormMain.Button4Click(Sender: TObject);
 begin
   Thread1.CancelarConsulta('Consulta');
 end;
 
-procedure TForm1.Button5Click(Sender: TObject);
+procedure TFormMain.Button5Click(Sender: TObject);
 begin
   Thread1.ProcedimentoGenericoAssync(
               Procedure
@@ -606,33 +598,33 @@ begin
                   Thread1.Queue(
                   procedure
                   begin
-                    form1.lbl1.Caption := IntToStr( StrToInt(form1.lbl1.Caption) + 10);
+                    FormMain.lbl1.Caption := IntToStr( StrToInt(FormMain.lbl1.Caption) + 10);
                   end);
                 end;
               end);
 end;
 
-procedure TForm1.Button6Click(Sender: TObject);
+procedure TFormMain.Button6Click(Sender: TObject);
 begin
   Thread1.Timer(3000,
   procedure
   begin
-    if StrToInt(Form1.lbl1.Caption) > 2000
-      then Form1.lbl1.Caption := '0';
+    if StrToInt(FormMain.lbl1.Caption) > 2000
+      then FormMain.lbl1.Caption := '0';
   end);
 end;
 
-procedure TForm1.Button7Click(Sender: TObject);
+procedure TFormMain.Button7Click(Sender: TObject);
 begin
   Thread1.TimerAssync(100,
   procedure
   begin
-    if StrToInt(Form1.lbl1.Caption) > 2000
-      then Form1.lbl1.Caption := '0';
+    if StrToInt(FormMain.lbl1.Caption) > 2000
+      then FormMain.lbl1.Caption := '0';
   end);
 end;
 
-procedure TForm1.Consulta;
+procedure TFormMain.Consulta;
 var
   RecordProcedure: TRecordProcedure;
 begin
@@ -660,29 +652,29 @@ begin
   end;
 end;
 
-procedure TForm1.FormClose(Sender: TObject; var Action: TCloseAction);
+procedure TFormMain.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   if not Button3.Visible
-    then Form1.Button4Click(Button4);
+    then FormMain.Button4Click(Button4);
   Application.ProcessMessages;
 end;
 
-procedure TForm1.FormCreate(Sender: TObject);
+procedure TFormMain.FormCreate(Sender: TObject);
 begin
   Thread1 := TThreadMain.Create(False);
 end;
 
-procedure TForm1.FormDestroy(Sender: TObject);
+procedure TFormMain.FormDestroy(Sender: TObject);
 begin
   Thread1.Kill;
 end;
 
-procedure TForm1.Synchronize(AThreadProc: TProc);
+procedure TFormMain.Synchronize(AThreadProc: TProc);
 begin
   Thread1.Synchronize(Thread1,TThreadProcedure(AThreadProc));
 end;
 
-procedure TForm1.Synchronize(AThreadProc: TProc; Thread: TThread);
+procedure TFormMain.Synchronize(AThreadProc: TProc; Thread: TThread);
 begin
   Thread1.Synchronize(Thread,TThreadProcedure(AThreadProc));
 end;
