@@ -23,39 +23,21 @@ object Form1: TForm1
     Caption = '1'
   end
   object Button4: TButton
-    Left = 536
-    Top = 8
-    Width = 75
-    Height = 25
-    Caption = 'Cancelar'
-    TabOrder = 4
-    OnClick = Button4Click
-  end
-  object Button1: TButton
     Left = 334
     Top = 8
     Width = 115
     Height = 25
-    Caption = 'Consultar direto'
-    TabOrder = 0
-    OnClick = Button1Click
-  end
-  object Button2: TButton
-    Left = 455
-    Top = 8
-    Width = 75
-    Height = 25
-    Caption = 'Exec'
-    TabOrder = 1
-    OnClick = Button2Click
+    Caption = 'Cancelar'
+    TabOrder = 2
+    OnClick = Button4Click
   end
   object Button3: TButton
-    Left = 536
+    Left = 334
     Top = 8
-    Width = 75
+    Width = 115
     Height = 25
     Caption = 'Consultar'
-    TabOrder = 2
+    TabOrder = 0
     OnClick = Button3Click
   end
   object DBGrid1: TDBGrid
@@ -64,7 +46,7 @@ object Form1: TForm1
     Width = 729
     Height = 259
     DataSource = DataSource1
-    TabOrder = 3
+    TabOrder = 1
     TitleFont.Charset = DEFAULT_CHARSET
     TitleFont.Color = clWindowText
     TitleFont.Height = -11
@@ -77,7 +59,7 @@ object Form1: TForm1
     Width = 115
     Height = 25
     Caption = 'Contar'
-    TabOrder = 5
+    TabOrder = 3
     OnClick = Button5Click
   end
   object Button6: TButton
@@ -86,7 +68,7 @@ object Form1: TForm1
     Width = 115
     Height = 25
     Caption = 'Timer Thread'
-    TabOrder = 6
+    TabOrder = 4
     OnClick = Button6Click
   end
   object Button7: TButton
@@ -95,7 +77,7 @@ object Form1: TForm1
     Width = 115
     Height = 25
     Caption = 'Timer Thread Assync'
-    TabOrder = 7
+    TabOrder = 5
     OnClick = Button7Click
   end
   object Query1: TADOQuery
@@ -154,62 +136,5 @@ object Form1: TForm1
     DataSet = Query1
     Left = 48
     Top = 8
-  end
-  object Query2: TADOQuery
-    Connection = ADOConnection2
-    CursorType = ctStatic
-    Parameters = <>
-    SQL.Strings = (
-      '/**/'
-      'SELECT top 1000000 a.[DepartmentID]'
-      '      ,a.[Name]'
-      '      ,a.[GroupName]'
-      '      ,a.[ModifiedDate]'
-      
-        '  FROM [HumanResources].[Department] a join [HumanResources].Emp' +
-        'loyee on 1=1 '
-      
-        '                                       join HumanResources.Shift' +
-        ' on 1=1 '
-      #9#9#9#9#9#9#9#9#9'   join HumanResources.JobCandidate on 1=1'
-      #9#9#9#9#9#9#9#9#9'   join HumanResources.EmployeePayHistory on 1=1'
-      #9#9#9#9#9#9#9#9#9'   join HumanResources.Department on 1=1'
-      ''
-      ''
-      '/**/'
-      '/*'
-      'select 1,'#39'A'#39
-      'union all'
-      'select 2,'#39'B'#39
-      'union all'
-      'select 3,'#39'A'#39
-      'union all'
-      'select 4,'#39'X'#39
-      'union all'
-      'select 5,'#39'W'#39
-      '*/')
-    Left = 696
-    Top = 16
-  end
-  object ADOConnection2: TADOConnection
-    Connected = True
-    ConnectionString = 
-      'Provider=SQLNCLI11.1;Password=senhatst;Persist Security Info=Tru' +
-      'e;User ID=sa;Initial Catalog=AdventureWorks2017;Data Source=LAPT' +
-      'OP-GK2QJ6O0;Use Procedure for Prepare=1;Auto Translate=True;Pack' +
-      'et Size=4096;Workstation ID=LAPTOP-GK2QJ6O0;Initial File Name=""' +
-      ';Use Encryption for Data=False;Tag with column collation when po' +
-      'ssible=False;MARS Connection=False;DataTypeCompatibility=0;Trust' +
-      ' Server Certificate=False;Server SPN="";Application Intent=READW' +
-      'RITE'
-    LoginPrompt = False
-    Provider = 'SQLNCLI11.1'
-    Left = 632
-    Top = 16
-  end
-  object DataSource2: TDataSource
-    DataSet = Query2
-    Left = 664
-    Top = 16
   end
 end
