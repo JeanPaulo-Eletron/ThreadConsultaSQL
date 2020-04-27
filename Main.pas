@@ -296,7 +296,12 @@ begin
           if Self.Finished
             then exit;
           QtdeProcAsync := QtdeProcAsync - 1;
-          for J := 0 to MyListProcWillProcAssync.List[I].DSList.Count - 1 do VincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
+          for J := 0 to MyListProcWillProcAssync.List[I].DSList.Count - 1 do begin
+            if MyListProcWillProcAssync.List[I].EmConsulta
+              then TAdoQuery(MyListProcWillProcAssync.List[I].DSList.List[J].DataSet).Connection.CommitTrans
+              else TAdoQuery(MyListProcWillProcAssync.List[I].DSList.List[J].DataSet).Close;
+            VincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
+          end;
           MyListProcWillProcAssync.Delete(I);
         end).Start;
     end
@@ -312,7 +317,12 @@ begin
           if Self.Finished
             then exit;
           QtdeProcAsync := QtdeProcAsync - 1;
-          for J := 0 to MyListProcWillProcAssync.List[I].DSList.Count - 1 do VincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
+          for J := 0 to MyListProcWillProcAssync.List[I].DSList.Count - 1 do begin
+            if MyListProcWillProcAssync.List[I].EmConsulta
+              then TAdoQuery(MyListProcWillProcAssync.List[I].DSList.List[J].DataSet).Connection.CommitTrans
+              else TAdoQuery(MyListProcWillProcAssync.List[I].DSList.List[J].DataSet).Close;
+            VincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
+          end;
           MyListProcWillProcAssync.Delete(I);
         end
       ).Start;
@@ -489,6 +499,9 @@ var
           FormMain.Thread1.MyListProcWillProcAssync.Insert(I, RecordProcedure);
         end);
     end;
+  RecordProcedure.SQLList.Qry.Close;
+  RecordProcedure.SQLList.Connection.Connected := True;
+  RecordProcedure.SQLList.Connection.BeginTrans;
   Result := RecordProcedure;
 end;
 
@@ -630,22 +643,8 @@ var
 begin
   try
     RecordProcedure := Thread1.NovaConexao(DataSource1,'Consulta');
-    RecordProcedure.SQLList.Qry.Close;
-    RecordProcedure.SQLList.Connection.Connected := True;
-    RecordProcedure.SQLList.Connection.BeginTrans;
     Button3.Visible := False;
     RecordProcedure.SQLList.Qry.Open;
-    Thread1.Synchronize(
-    procedure
-    var
-      I : Integer;
-    begin
-      for I := 0 to Thread1.MyListProcWillProcAssync.Count do if RecordProcedure.NomeProcedimento = Thread1.MyListProcWillProcAssync.List[I].NomeProcedimento then break;
-      if Thread1.MyListProcWillProcAssync.List[I].EmConsulta
-        then RecordProcedure.SQLList.Connection.CommitTrans
-        else RecordProcedure.SQLList.Qry.Close;//é porque eu cancelei no meio
-    end
-    );
   finally
     Button3.Enabled := True;
     Button3.Visible := True;
