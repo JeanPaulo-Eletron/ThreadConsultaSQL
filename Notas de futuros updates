@@ -1,5 +1,5 @@
-:: Falta permitir o cancelamento da consulta adicionando o status da consulta no Record ::
-:: Branch Lite ::
+:: Fazer o teste intensivamente ::
+:: Branch Thread Não Assync(para trabalhar com vários objetos diferentes ::
 3.0
 :: Implementação de Sockets ::
 :: Implementação de chamadas remotas ::
