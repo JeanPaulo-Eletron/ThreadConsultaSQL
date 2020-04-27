@@ -37,6 +37,8 @@ type
       MetaDado : String;
       NomeProcedimento : String;
       DSList  : TList<TDataSource>;
+      SQLList: TSQLList;
+      EmConsulta: Boolean;
     end;
 type
     TThreadMain = class(TThread)
@@ -59,10 +61,9 @@ private
     procedure PrepararRequisicaoConsulta(DS: TDataSource;Button: TButton);
     procedure DesvincularComponente(DS: TDataSource);
     procedure VincularComponente(DS: TDataSource);
-    procedure NovaConexao(DS: TDataSource);overload;
+    function  NovaConexao(DS: TDataSource):TRecordProcedure;overload;
 protected
     Rest : Integer;
-    SQLList: TSQLList;
     procedure Execute; override;
 public
     EmConsulta: boolean;
@@ -72,7 +73,6 @@ public
     DataSource: TDataSource;
     NaoPermitirFilaRequisicao: Boolean;
     MyList:     TList<TSQLList>;
-    MyListConnection: TList<TSQLList>;
     procedure Open(DS: TDataSource; Button: TButton);
     procedure ExecSQL(DS: TDataSource; Button: TButton);
     procedure Timer(Rest: NativeUInt; Procedimento: TProcedure);overload;
@@ -87,10 +87,11 @@ public
     procedure ProcedimentoGenerico(Procedimento: TProc; NomeProcedimento: String);overload;
     procedure ProcedimentoGenericoAssync(Procedimento: TProcedure; NomeProcedimento: String);overload;
     procedure ProcedimentoGenericoAssync(Procedimento: TProc; NomeProcedimento: String);overload;
-    procedure CancelarConsulta;
-    procedure NovaConexao(DS: TDataSource; ProcedimentoOrigem: String);overload;
+    function  NovaConexao(DS: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;overload;
     procedure Kill;
-    procedure ClonarQry(Qry: TAdoQuery);
+    procedure ClonarQry(Qry: TAdoQuery; SQLList: TSQLList);
+    procedure CancelarConsulta;Overload;
+    procedure CancelarConsulta(ProcedimentoOrigem: String);Overload;
 end;
 
 TForm1 = class(TForm)
@@ -345,14 +346,16 @@ var
 Button : TButton;
 List   : TSQLList;
 Aux : Integer;
+SQLList: TSQLList;
+Procedimento : TRecordProcedure;
 begin
 try
   Synchronize(
   procedure
   begin
     List  := Self.MyList.First;//*** Ele tem que pegar a primeira colocada, pois é a primeira a ser executada ***
-    NovaConexao(List.DS);
-    SQLList := MyListConnection.Last;
+    Procedimento := NovaConexao(List.DS);
+    SQLList := Procedimento.SQLList;
     Aux   := Integer(Msg.wParam);
     Button := List.Button;
     SQLList.Qry.Close;
@@ -375,7 +378,6 @@ try
     VincularComponente(List.DS);
     Button.Caption := 'Consultar direto';
     MyList.Remove(List);
-    MyListConnection.Remove(SQLList);
  end;
 end;
 
@@ -546,12 +548,12 @@ begin
   MyListProcTimerAssync.Delete(0);
 end;
 
-procedure TThreadMain.NovaConexao(DS: TDataSource);
+function TThreadMain.NovaConexao(DS: TDataSource):TRecordProcedure;
 begin
-  NovaConexao(DS,'');
+  Result := NovaConexao(DS,'');
 end;
 
-procedure TThreadMain.NovaConexao(DS: TDataSource; ProcedimentoOrigem: String);
+function TThreadMain.NovaConexao(DS: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;
 // é importante criar uma nova conexão ao acessar o banco pra não dar erro de ter duas consultas
 // retornando resultado ao mesmo tempo, e também para permitir o rollback sem afetar as outras consultas...
 var
@@ -559,33 +561,8 @@ var
   ConnectionAux: TADOConnection;
   I : Integer;
   RecordProcedure: TRecordProcedure;
+  SQLList: TSQLList;
  begin
-  if MyListConnection = nil
-    then MyListConnection := TList<TSQLList>.Create;
-
-  for I := 0 to Length(Form1.Thread1.MyListProc.List)-1 do
-  if Pos(ProcedimentoOrigem, Form1.Thread1.MyListProc.List[I].NomeProcedimento) <> 0
-    then begin
-      Synchronize(
-        Procedure
-        begin
-          RecordProcedure                 := Form1.Thread1.MyListProc.List[I];
-          RecordProcedure.MetaDado        := MyListProc.First.MetaDado + 'Houve Nova Conexão;';
-          RecordProcedure.DSList.Add(DS);
-        end);
-    end;
-  for I := 0 to Length(Form1.Thread1.MyListProcWillProcAssync.List)-1 do
-  if Pos(ProcedimentoOrigem, Form1.Thread1.MyListProcWillProcAssync.List[I].NomeProcedimento) <> 0
-    then begin
-      Synchronize(
-        Procedure
-        begin
-          RecordProcedure                 := Form1.Thread1.MyListProcWillProcAssync.List[I];
-          RecordProcedure.MetaDado        := RecordProcedure.MetaDado + 'Houve Nova Conexão;';
-          RecordProcedure.DSList.Add(DS);
-        end);
-    end;
-
   ID := ID + 1;
   DesvincularComponente(DS);
   Qry := TAdoQuery(DS.DataSet);
@@ -607,7 +584,7 @@ var
   end;
   if pos('Assync',Qry.Name) <> 0 then begin
     Try
-      ClonarQry(Qry);
+      ClonarQry(Qry,SQLList);
     except
       Self.Synchronize(
         Procedure begin
@@ -639,13 +616,43 @@ var
   else SQLList.DS := DS;
 
   SQLList.Connection.Connected            := True;
-  MyListConnection.Add(SQLList);
+    for I := 0 to Length(Form1.Thread1.MyListProc.List)-1 do
+  if ProcedimentoOrigem = Form1.Thread1.MyListProc.List[I].NomeProcedimento
+    then begin
+      Synchronize(
+        Procedure
+        begin
+          RecordProcedure                  := Form1.Thread1.MyListProc.ExtractAt(I);
+          RecordProcedure.MetaDado         := MyListProc.First.MetaDado + 'Houve Nova Conexão;';
+          RecordProcedure.DSList.Add(DS);
+          RecordProcedure.SQLList          := SQLList;
+          RecordProcedure.EmConsulta := True;
+          Form1.Thread1.MyListProc.Insert(I, RecordProcedure);
+        end);
+    end;
+  for I := 0 to Length(Form1.Thread1.MyListProcWillProcAssync.List)-1 do
+  if ProcedimentoOrigem = Form1.Thread1.MyListProcWillProcAssync.List[I].NomeProcedimento
+    then begin
+      Synchronize(
+        Procedure
+        begin
+          RecordProcedure                 := Form1.Thread1.MyListProcWillProcAssync.ExtractAt(I);
+          RecordProcedure.MetaDado        := RecordProcedure.MetaDado + 'Houve Nova Conexão;';
+          RecordProcedure.DSList.Add(DS);
+          RecordProcedure.SQLList         := SQLList;
+          RecordProcedure.EmConsulta := True;
+          Form1.Thread1.MyListProcWillProcAssync.Insert(I, RecordProcedure);
+        end);
+    end;
+  Result := RecordProcedure;
 end;
-procedure TThreadMain.ClonarQry(Qry: TAdoQuery);
+
+procedure TThreadMain.ClonarQry(Qry: TAdoQuery; SQLList: TSQLList);
 var
   I : Integer;
   Field : TField;
 begin
+{
   if (Qry <> nil) then begin
     SQLList.Qry                           := TADOQuery.Create(Form1);
     SQLList.Qry.AutoCalcFields            := Qry.AutoCalcFields;
@@ -814,23 +821,54 @@ begin
         then TFloatField(Field).currency   := TFloatField(Qry.Fields.Fields[I]).currency;
     end;
   end;
+  }
 end;
 
 procedure TThreadMain.CancelarConsulta;
+var
+  SQLList: TSQLList;
 begin
-    if EmConsulta then begin
+{
+  if EmConsulta then begin
+    Synchronize(
+      Procedure
+      begin
+        try
+          SQLList.DS.Enabled := False;
+          SQLList.Connection.RollbackTrans;
+        finally
+          SQLList.EmConsulta := False;
+        end;
+      end
+    );
+  end;
+}
+end;
+
+procedure TThreadMain.CancelarConsulta(ProcedimentoOrigem: String);
+var
+  I: Integer;
+begin
+  for I := 0 to Form1.Thread1.MyListProcWillProcAssync.Count - 1 do
+  if Form1.Thread1.MyListProcWillProcAssync.Items[I].NomeProcedimento = ProcedimentoOrigem then begin
+    if Form1.Thread1.MyListProcWillProcAssync.Items[I].EmConsulta then begin
       Synchronize(
         Procedure
+        var
+          Procedimento : TRecordProcedure;
         begin
           try
-            SQLList.DS.Enabled := False;
-            SQLList.Connection.RollbackTrans;
+            Procedimento := Form1.Thread1.MyListProcWillProcAssync.ExtractAt(I);
+            Procedimento.SQLList.DS.Enabled := False;
+            Procedimento.SQLList.Connection.RollbackTrans;
           finally
-            EmConsulta := False;
+            Procedimento.EmConsulta := False;
+            Form1.Thread1.MyListProcWillProcAssync.Insert(I, Procedimento);
           end;
         end
       );
     end;
+  end;
 end;
 
 procedure TThreadMain.Kill;
@@ -854,7 +892,7 @@ begin
         ID := ID + 1;
         DSAux      := TDataSource.Create(Form1);
         DSAux.Name := DS.Name+'INACTIVE'+IntToStr(ID);
-        TDBGrid(Form.Components[i]).DataSource := DSAux
+        Synchronize(Procedure begin TDBGrid(Form.Components[i]).DataSource := DSAux end);
       end
       else
     if (Form.Components[i] is TDBMemo)  and (TDBMemo(Form.Components[i]).DataSource = DS)
@@ -862,7 +900,7 @@ begin
         ID := ID + 1;
         DSAux      := TDataSource.Create(Form1);
         DSAux.Name := DS.Name+'INACTIVE'+IntToStr(ID);
-        TDBMemo(Form.Components[i]).DataSource := DSAux;
+        Synchronize(Procedure begin TDBMemo(Form.Components[i]).DataSource := DSAux end);
       end;
   end;
 end;
@@ -879,10 +917,14 @@ begin
   Form := TForm(Qry.Owner);
   for i := 0 to (Form.ComponentCount - 1) do begin
     if (Form.Components[i] is TDBGrid)  and (Copy(String(TDBGrid(Form.Components[i]).DataSource.Name),0,Pos('INACTIVE', String(TDBGrid(Form.Components[i]).DataSource.Name))-1) = DS.Name)
-      then TDBGrid(Form.Components[i]).DataSource := SQLList.DS
+      then begin
+        Synchronize(Procedure begin TDBGrid(Form.Components[i]).DataSource := DS end);
+      end
       else
     if (Form.Components[i] is TDBMemo)  and (Copy(String(TDBMemo(Form.Components[i]).DataSource.Name),0,Pos('INACTIVE', String(TDBMemo(Form.Components[i]).DataSource.Name))-1) = DS.Name)
-      then TDBMemo(Form.Components[i]).DataSource := SQLList.DS;
+      then begin
+        Synchronize(procedure begin TDBMemo(Form.Components[i]).DataSource := DS end);
+      end
   end;
   //Criar em breve --> Vincular Todos Daquele Mesmo Ramo De Processos
 end;
@@ -915,7 +957,7 @@ end;
 
 procedure TForm1.Button4Click(Sender: TObject);
 begin
-  Thread1.CancelarConsulta;
+  Thread1.CancelarConsulta('Consulta');
 end;
 
 procedure TForm1.Button5Click(Sender: TObject);
@@ -958,28 +1000,26 @@ end;
 
 procedure TForm1.Consulta;
 var
-  SQLList: TSQLList;
+  RecordProcedure: TRecordProcedure;
 begin
   try
-    Thread1.NovaConexao(DataSource1,'Consulta');
-    SQLList := Thread1.MyListConnection.Last;
-    SQLList.Qry.Close;
-    SQLList.Connection.Connected := True;
-//    SQLList.Connection.BeginTrans;
+    RecordProcedure := Thread1.NovaConexao(DataSource1,'Consulta');
+    RecordProcedure.SQLList.Qry.Close;
+    RecordProcedure.SQLList.Connection.Connected := True;
+    RecordProcedure.SQLList.Connection.BeginTrans;
     Button3.Visible := False;
-    SQLList.Qry.Open;
-    {
+    RecordProcedure.SQLList.Qry.Open;
     Thread1.Synchronize(
     procedure
+    var
+      I : Integer;
     begin
-      if Thread1.EmConsulta
-        then Thread1.Connection.CommitTrans
-        else begin
-          SQLList.Qry.Close;
-          Thread1.EmConsulta := False;
-        end;//é porque eu cancelei no meio
+      for I := 0 to Thread1.MyListProcWillProcAssync.Count do if RecordProcedure.NomeProcedimento = Thread1.MyListProcWillProcAssync.List[I].NomeProcedimento then break;
+      if Thread1.MyListProcWillProcAssync.List[I].EmConsulta
+        then RecordProcedure.SQLList.Connection.CommitTrans
+        else RecordProcedure.SQLList.Qry.Close;//é porque eu cancelei no meio
     end
-    );}
+    );
   finally
     Button3.Enabled := True;
     Button3.Visible := True;
