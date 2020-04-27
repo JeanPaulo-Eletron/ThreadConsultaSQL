@@ -1,0 +1,2 @@
+ProblemFile.c     diff=utf16_diff
+ProblemFile.c     set diff
