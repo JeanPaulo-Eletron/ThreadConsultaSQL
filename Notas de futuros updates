@@ -1,5 +1,5 @@
 :: Fazer o teste intensivamente ::
-:: Branch Thread Não Assync(para trabalhar com vários objetos diferentes ::
+:: Refazer não Assyncs nos mesmos procedimentos do Assync com um "IF" (para trabalhar com vários objetos diferentes em fila) ::
 3.0
 :: Implementação de Sockets ::
 :: Implementação de chamadas remotas ::
