@@ -72,7 +72,7 @@ object FormMain: TFormMain
   end
   object Button1: TButton
     Left = 455
-    Top = 55
+    Top = 58
     Width = 115
     Height = 25
     Caption = 'Stop'
@@ -80,8 +80,8 @@ object FormMain: TFormMain
     OnClick = Button1Click
   end
   object Button2: TButton
-    Left = 576
-    Top = 55
+    Left = 455
+    Top = 33
     Width = 115
     Height = 25
     Caption = 'Start'
