@@ -13,7 +13,7 @@ uses
     Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
     Dialogs, Db, Vcl.Grids, Vcl.DBGrids, Data.Win.ADODB, Vcl.StdCtrls,
     System.Rtti, System.TypInfo, Generics.Collections, Vcl.ExtCtrls,
-    Vcl.DBCtrls;
+    Vcl.DBCtrls, SyncObjs;
 
 const
     WM_OPEN                       = WM_USER + 1;
@@ -106,6 +106,7 @@ end;
 var
   FormMain: TFormMain;
   Timerid: UINT;
+  FLock : TCriticalSection;
 implementation
 
 {$R *.DFM}
@@ -132,6 +133,7 @@ begin
     then MyListProcWillProcAssync := TList<TRecordProcedure>.Create;
   if MyListProcWillTimer = nil
     then MyListProcWillTimer := TList<TRecordProcedure>.Create;
+  FLock := TCriticalSection.Create;
   while not Terminated do begin
     Dispatcher;
   end;
@@ -406,11 +408,13 @@ var
       Synchronize(
         Procedure
         begin
+          FLock.Acquire;
           RecordProcedure                 := FormMain.Thread1.MyListProcWillProcAssync.ExtractAt(I);
           RecordProcedure.DSList.Add(DS);
           RecordProcedure.SQLList         := SQLList;
           RecordProcedure.EmConsulta      := True;
           FormMain.Thread1.MyListProcWillProcAssync.Insert(I, RecordProcedure);
+          FLock.Release;
         end);
     end;
   for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List)-1 do
@@ -419,11 +423,13 @@ var
       Synchronize(
         Procedure
         begin
+          FLock.Acquire;
           RecordProcedure                 := FormMain.Thread1.MyListProcWillTimer.ExtractAt(I);
           RecordProcedure.DSList.Add(DS);
           RecordProcedure.SQLList         := SQLList;
           RecordProcedure.EmConsulta      := True;
           FormMain.Thread1.MyListProcWillTimer.Insert(I, RecordProcedure);
+          FLock.Release;
         end);
     end;
   RecordProcedure.SQLList.Qry.Close;
@@ -445,12 +451,14 @@ begin
           Procedimento : TRecordProcedure;
         begin
           try
+            FLock.Acquire;
             Procedimento := FormMain.Thread1.MyListProcWillProcAssync.ExtractAt(I);
             Procedimento.SQLList.DS.Enabled := False;
             Procedimento.SQLList.Connection.RollbackTrans;
           finally
             Procedimento.EmConsulta := False;
             FormMain.Thread1.MyListProcWillProcAssync.Insert(I, Procedimento);
+            FLock.Release;
           end;
         end
       );
@@ -462,7 +470,8 @@ procedure TThreadMain.Kill;
 var
   I: integer;
 begin
-  KillTimer(0, TimerId);
+  FreeAndNil(FLock);
+  for I := 0 to MyListProcWillTimer.Count - 1 do KillTimer(0, MyListProcWillTimer.List[I].ID);
   for I := 0 to MyListProcWillProcAssync.Count - 1 do CancelarConsulta(MyListProcWillProcAssync.List[I].NomeProcedimento);//Cancelando todas as consultas
   if (EmProcesso) or (QtdeProcAsync <> 0)
     then Destroy
