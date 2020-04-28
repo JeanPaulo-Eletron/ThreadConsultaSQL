@@ -65,8 +65,6 @@ public
     DataSource: TDataSource;
     NaoPermitirFilaDeProcessos: Boolean;
     MyList:     TList<TSQLList>;
-    procedure Timer(Rest: NativeUInt; Procedimento: TProcedure);overload;
-    procedure Timer(Rest: NativeUInt; Procedimento: TProc);overload;
     procedure TimerAssync(Rest: NativeUInt; Procedimento: TProc);overload;
     procedure TimerAssync(Rest: NativeUInt; Procedimento: TProcedure);overload;
     procedure ProcedimentoGenericoAssync(Procedimento: TProcedure);overload;
@@ -87,15 +85,12 @@ TFormMain = class(TForm)
     Button4: TButton;
     Button5: TButton;
     lbl1: TLabel;
-    Button6: TButton;
     Button7: TButton;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure Button3Click(Sender: TObject);
     procedure Button4Click(Sender: TObject);
-    procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure Button5Click(Sender: TObject);
-    procedure Button6Click(Sender: TObject);
     procedure Button7Click(Sender: TObject);
 private
 { Private declarations }
@@ -205,27 +200,6 @@ begin
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 1, 0);
 end;
 
-procedure TThreadMain.Timer(Rest: NativeUInt; Procedimento: TProcedure);
-begin
-  if NaoPermitirFilaDeProcessos and EmProcesso
-    then exit;
-  if MyListProcTimerAssync = nil
-    then  MyListProcTimerAssync := TList<TRecordProcedure>.Create;
-  Self.RecordProcedure.Procedimento := Procedimento;
-  MyListProcTimerAssync.Add(Self.RecordProcedure);
-  PostThreadMessage(ThreadID, WM_TIMERTHREADASSYNC, Rest, 1);
-end;
-
-procedure TThreadMain.Timer(Rest: NativeUInt; Procedimento: TProc);
-begin
-  if NaoPermitirFilaDeProcessos and EmProcesso
-    then exit;
-  if MyListProcTimerAssync = nil
-    then  MyListProcTimerAssync := TList<TRecordProcedure>.Create;
-  Self.RecordProcedure.RProcedimento := Procedimento;
-  MyListProcTimerAssync.Add(Self.RecordProcedure);
-  PostThreadMessage(ThreadID, WM_TIMERTHREADASSYNC, Rest, 2);
-end;
 
 procedure TThreadMain.TimerAssync(Rest: NativeUInt; Procedimento: TProcedure);
 begin
@@ -348,16 +322,6 @@ begin
   Aux.Tipo := Rest;
   if MyListProcWillTimer = nil
     then MyListProcWillTimer := TList<TRecordProcedure>.Create;
-  if Msg.lParam <= 2
-    then Aux.RProcedimento := procedure begin
-                                Synchronize(procedure
-                                            var
-                                              Procedimento : TProc;
-                                            begin
-                                              Procedimento := Aux.RProcedimento;
-                                              Procedimento;
-                                            end);
-                              end;
   Synchronize( procedure begin
                  TimerId   := SetTimer(0, QtdeTimers, Rest, @MyTimeout);
                  Aux.ID    := TimerID;
@@ -539,23 +503,13 @@ begin
               end);
 end;
 
-procedure TFormMain.Button6Click(Sender: TObject);
-begin
-  Thread1.Timer(3000,
-  procedure
-  begin
-    if StrToInt(FormMain.lbl1.Caption) > 2000
-      then FormMain.lbl1.Caption := '0';
-  end);
-end;
-
 procedure TFormMain.Button7Click(Sender: TObject);
 begin
   Thread1.TimerAssync(100,
   procedure
   begin
     if StrToInt(FormMain.lbl1.Caption) > 2000
-      then FormMain.lbl1.Caption := '0';
+      then Thread1.Synchronize(procedure begin FormMain.lbl1.Caption := '0' end);
   end);
 end;
 
@@ -571,13 +525,6 @@ begin
     Button3.Enabled := True;
     Button3.Visible := True;
   end;
-end;
-
-procedure TFormMain.FormClose(Sender: TObject; var Action: TCloseAction);
-begin
-  if not Button3.Visible
-    then FormMain.Button4Click(Button4);
-  Application.ProcessMessages;
 end;
 
 procedure TFormMain.FormCreate(Sender: TObject);
