@@ -130,6 +130,8 @@ begin
   FreeOnTerminate := self.Finished;
   if MyListProcWillProcAssync = nil
     then MyListProcWillProcAssync := TList<TRecordProcedure>.Create;
+  if MyListProcWillTimer = nil
+    then MyListProcWillTimer := TList<TRecordProcedure>.Create;
   while not Terminated do begin
     Dispatcher;
   end;
@@ -351,8 +353,6 @@ begin
                            end;
     end;
   Aux.Tipo := Rest;
-  if MyListProcWillTimer = nil
-    then MyListProcWillTimer := TList<TRecordProcedure>.Create;
   Synchronize( procedure begin
                  TimerId   := SetTimer(0, QtdeTimers, Rest, @MyTimeout);
                  Aux.ID    := TimerID;
