@@ -10,7 +10,6 @@ object FormMain: TFormMain
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
-  OnClose = FormClose
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   PixelsPerInch = 96
@@ -62,22 +61,13 @@ object FormMain: TFormMain
     TabOrder = 3
     OnClick = Button5Click
   end
-  object Button6: TButton
-    Left = 213
-    Top = 39
-    Width = 115
-    Height = 25
-    Caption = 'Timer Thread'
-    TabOrder = 4
-    OnClick = Button6Click
-  end
   object Button7: TButton
-    Left = 334
-    Top = 39
+    Left = 455
+    Top = 8
     Width = 115
     Height = 25
     Caption = 'Timer Thread Assync'
-    TabOrder = 5
+    TabOrder = 4
     OnClick = Button7Click
   end
   object Query1: TADOQuery
