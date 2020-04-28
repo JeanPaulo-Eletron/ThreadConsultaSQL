@@ -1,3 +1,4 @@
+:: Dar kill em todos os timers ::
 :: Fazer o teste intensivamente ::
 :: Permitir setar o intervalo do timer ::
 :: Refazer não Assyncs nos mesmos procedimentos do Assync com um "IF" (para trabalhar com vários objetos diferentes em fila) ::
