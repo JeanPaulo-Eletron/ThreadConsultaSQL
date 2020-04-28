@@ -12,7 +12,7 @@ interface
 uses
     Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
     Dialogs, Db, Vcl.Grids, Vcl.DBGrids, Data.Win.ADODB, Vcl.StdCtrls,
-    System.Rtti, System.TypInfo, Generics.Collections, Vcl.ExtCtrls,
+    {System.Rtti,} System.TypInfo, Generics.Collections, Vcl.ExtCtrls,
     Vcl.DBCtrls, SyncObjs;
 
 const
@@ -389,45 +389,49 @@ var
  begin
   ID := ID + 1;
   DesvincularComponente(DS);
+
   Qry := TAdoQuery(DS.DataSet);
   ConnectionAux := Qry.Connection;
-  if ConnectionAux <> nil then begin
-    SQLList.Connection                      := TADOConnection.Create(FormMain);
-    SQLList.Connection.ConnectionString     := ConnectionAux.ConnectionString;
-    SQLList.Connection.ConnectionTimeout    := ConnectionAux.ConnectionTimeout;
-    SQLList.Connection.ConnectOptions       := ConnectionAux.ConnectOptions;
-    SQLList.Connection.CursorLocation       := ConnectionAux.CursorLocation;
-    SQLList.Connection.DefaultDatabase      := ConnectionAux.DefaultDatabase;
-    SQLList.Connection.IsolationLevel       := ConnectionAux.IsolationLevel;
-    SQLList.Connection.KeepConnection       := ConnectionAux.KeepConnection;
-    SQLList.Connection.LoginPrompt          := ConnectionAux.LoginPrompt;
-    SQLList.Connection.Mode                 := ConnectionAux.Mode;
-    SQLList.Connection.Name                 := 'Thread'+IntToStr(ID)+IntToStr(Self.ThreadID)+ConnectionAux.Name;
-    SQLList.Connection.Provider             := ConnectionAux.Provider;
-    SQLList.Connection.Tag                  := ConnectionAux.Tag;
-  end;
+  RecordProcedure.SQLList.Connection                      := TADOConnection.Create(FormMain);
+  RecordProcedure.SQLList.Connection.ConnectionString     := ConnectionAux.ConnectionString;
+  RecordProcedure.SQLList.Connection.ConnectionTimeout    := ConnectionAux.ConnectionTimeout;
+  RecordProcedure.SQLList.Connection.ConnectOptions       := ConnectionAux.ConnectOptions;
+  RecordProcedure.SQLList.Connection.CursorLocation       := ConnectionAux.CursorLocation;
+  RecordProcedure.SQLList.Connection.DefaultDatabase      := ConnectionAux.DefaultDatabase;
+  RecordProcedure.SQLList.Connection.IsolationLevel       := ConnectionAux.IsolationLevel;
+  RecordProcedure.SQLList.Connection.KeepConnection       := ConnectionAux.KeepConnection;
+  RecordProcedure.SQLList.Connection.LoginPrompt          := ConnectionAux.LoginPrompt;
+  RecordProcedure.SQLList.Connection.Mode                 := ConnectionAux.Mode;
+  RecordProcedure.SQLList.Connection.Name                 := 'Thread'+IntToStr(ID)+IntToStr(Self.ThreadID)+ConnectionAux.Name;
+  RecordProcedure.SQLList.Connection.Provider             := ConnectionAux.Provider;
+  RecordProcedure.SQLList.Connection.Tag                  := ConnectionAux.Tag;
 
   Self.Synchronize(
     Procedure begin
-      SQLList.Connection.Connected := True;
-      Qry.Connection               := SQLList.Connection;
-      SQLList.Qry                  := Qry;
-      DS.Enabled := False;
-      SQLList.DS := DS;
-      SQLList.DS.Enabled := True;
+      RecordProcedure.SQLList.Connection.Connected := True;
+      RecordProcedure.SQLList.Qry                  := Qry;
+      RecordProcedure.SQLList.Qry.Connection       :=  RecordProcedure.SQLList.Connection;
+      RecordProcedure.SQLList.DS                   := DS;
+      RecordProcedure.SQLList.DS.Enabled           := True;
     end);
+  RecordProcedure.SQLList.Qry.Close;
+  RecordProcedure.SQLList.Connection.Connected := True;
+  RecordProcedure.SQLList.Connection.BeginTrans;
   for I := 0 to Length(FormMain.Thread1.MyListProcWillProcAssync.List)-1 do
   if ProcedimentoOrigem = FormMain.Thread1.MyListProcWillProcAssync.List[I].NomeProcedimento
     then begin
       Synchronize(
         Procedure
+        var
+        Aux : TRecordProcedure;
         begin
           FLock.Acquire;
-          RecordProcedure                 := FormMain.Thread1.MyListProcWillProcAssync.ExtractAt(I);
-          RecordProcedure.DSList.Add(DS);
-          RecordProcedure.SQLList         := SQLList;
-          RecordProcedure.EmConsulta      := True;
-          FormMain.Thread1.MyListProcWillProcAssync.Insert(I, RecordProcedure);
+          Aux                 := FormMain.Thread1.MyListProcWillProcAssync.ExtractAt(I);
+          Aux.DSList.Add(DS);
+          Aux.SQLList         := RecordProcedure.SQLList;
+          Aux.EmConsulta      := True;
+          FormMain.Thread1.MyListProcWillProcAssync.Insert(I, Aux);
+          RecordProcedure     := Aux;
           FLock.Release;
         end);
     end;
@@ -436,6 +440,8 @@ var
     then begin
       Synchronize(
         Procedure
+        var
+          Aux : TRecordProcedure;
         begin
           FLock.Acquire;
           RecordProcedure                 := FormMain.Thread1.MyListProcWillTimer.ExtractAt(I);
@@ -443,14 +449,13 @@ var
           RecordProcedure.SQLList         := SQLList;
           RecordProcedure.EmConsulta      := True;
           FormMain.Thread1.MyListProcWillTimer.Insert(I, RecordProcedure);
+          RecordProcedure := Aux;
           FLock.Release;
         end);
     end;
-  RecordProcedure.SQLList.Qry.Close;
-  RecordProcedure.SQLList.Connection.Connected := True;
-  RecordProcedure.SQLList.Connection.BeginTrans;
   Result := RecordProcedure;
 end;
+
 
 procedure TThreadMain.CancelarConsulta(ProcedimentoOrigem: String);
 var
