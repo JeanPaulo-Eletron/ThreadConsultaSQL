@@ -70,6 +70,24 @@ object FormMain: TFormMain
     TabOrder = 4
     OnClick = Button7Click
   end
+  object Button1: TButton
+    Left = 455
+    Top = 55
+    Width = 115
+    Height = 25
+    Caption = 'Stop'
+    TabOrder = 5
+    OnClick = Button1Click
+  end
+  object Button2: TButton
+    Left = 576
+    Top = 55
+    Width = 115
+    Height = 25
+    Caption = 'Start'
+    TabOrder = 6
+    OnClick = Button2Click
+  end
   object Query1: TADOQuery
     Connection = ADOConnection1
     CursorType = ctStatic

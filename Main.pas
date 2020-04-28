@@ -79,6 +79,8 @@ public
     procedure CancelarConsulta(ProcedimentoOrigem: String);
     procedure SetRest(Rest:Integer; ProcedimentoOrigem: String);
     function  GetRest(ProcedimentoOrigem: String):Integer;
+    procedure  StopTimer(ProcedimentoOrigem: String);
+    procedure  StartTimer(ProcedimentoOrigem: String);
 end;
 
 TFormMain = class(TForm)
@@ -91,12 +93,16 @@ TFormMain = class(TForm)
     Button5: TButton;
     lbl1: TLabel;
     Button7: TButton;
+    Button1: TButton;
+    Button2: TButton;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure Button3Click(Sender: TObject);
     procedure Button4Click(Sender: TObject);
     procedure Button5Click(Sender: TObject);
     procedure Button7Click(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
 private
 { Private declarations }
     Thread1 : TThreadMain;
@@ -373,6 +379,7 @@ begin
   Synchronize( procedure begin
                  TimerId   := SetTimer(0, QtdeTimers, 0, @MyTimeout);
                  Aux.ID    := TimerID;
+                 Aux.Tipo  := QtdeTimers;
                  MyListProcWillTimer.Add(Aux);
                end );// não async vai no main
 end;
@@ -530,8 +537,6 @@ var
   Qry:   TAdoQuery;
 begin
   Qry:= TAdoQuery(DS.DataSet);
-  if pos('Assync',DS.Name) <> 0
-    then DS.DataSet := nil;
   Form := TForm(Qry.Owner);
   for i := 0 to (Form.ComponentCount - 1) do begin
     if (Form.Components[i] is TDBGrid)  and (Copy(String(TDBGrid(Form.Components[i]).DataSource.Name),0,Pos('INACTIVE', String(TDBGrid(Form.Components[i]).DataSource.Name))-1) = DS.Name)
@@ -568,7 +573,38 @@ begin
   for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem
     then Result := FormMain.Thread1.MyListProcWillTimer.List[I].Rest;
 end;
+
+
+procedure TThreadMain.StartTimer(ProcedimentoOrigem: String);
+var
+  I : Integer;
+begin
+  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem then begin
+    TimerId   := SetTimer(0, FormMain.Thread1.MyListProcWillTimer.List[I].Tipo, FormMain.Thread1.MyListProcWillTimer.List[I].Rest, @MyTimeout);
+    FormMain.Thread1.MyListProcWillTimer.List[I].ID := TimerId;
+  end;
+end;
+
+procedure TThreadMain.StopTimer(ProcedimentoOrigem: String);
+var
+  I : Integer;
+begin
+  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem
+    then KillTimer(0,FormMain.Thread1.MyListProcWillTimer.List[I].ID);
+end;
+
+
 // ------------------- MAIN -------------------- //
+
+procedure TFormMain.Button1Click(Sender: TObject);
+begin
+  Thread1.StopTimer('Contar');
+end;
+
+procedure TFormMain.Button2Click(Sender: TObject);
+begin
+  Thread1.StartTimer('Contar');
+end;
 
 procedure TFormMain.Button3Click(Sender: TObject);
 begin
