@@ -297,6 +297,7 @@ begin
               then TAdoQuery(MyListProcWillProcAssync.List[I].DSList.List[J].DataSet).Connection.CommitTrans
               else TAdoQuery(MyListProcWillProcAssync.List[I].DSList.List[J].DataSet).Close;
             VincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
+            MyListProcWillProcAssync.List[I].SQLList.DS.Destroy;
           end;
           MyListProcWillProcAssync.Delete(I);
         end).Start;
@@ -318,6 +319,7 @@ begin
               then TAdoQuery(MyListProcWillProcAssync.List[I].DSList.List[J].DataSet).Connection.CommitTrans
               else TAdoQuery(MyListProcWillProcAssync.List[I].DSList.List[J].DataSet).Close;
             VincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
+            MyListProcWillProcAssync.List[I].SQLList.DS.Destroy;
           end;
           MyListProcWillProcAssync.Delete(I);
         end
@@ -406,9 +408,10 @@ var
   RecordProcedure: TRecordProcedure;
   SQLList: TSQLList;
  begin
+  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem
+     then while FormMain.Thread1.MyListProcWillTimer.List[I].EmProcesso do sleep(100);
   ID := ID + 1;
   DesvincularComponente(DS);
-
   Qry := TAdoQuery(DS.DataSet);
   ConnectionAux := Qry.Connection;
   RecordProcedure.SQLList.Connection                      := TADOConnection.Create(FormMain);
@@ -425,12 +428,19 @@ var
   RecordProcedure.SQLList.Connection.Provider             := ConnectionAux.Provider;
   RecordProcedure.SQLList.Connection.Tag                  := ConnectionAux.Tag;
 
+  if (DS <> nil) then begin
+    RecordProcedure.SQLList.DS                      := TDataSource.Create(FormMain);
+    RecordProcedure.SQLList.DS.AutoEdit             := DS.AutoEdit;
+    RecordProcedure.SQLList.DS.Name                 := 'Thread'+IntToStr(ID)+IntToStr(Self.ThreadID)+DS.Name;
+    RecordProcedure.SQLList.DS.Tag                  := DS.Tag;
+    RecordProcedure.SQLList.DS.DataSet              := TDataSet(SQLList.Qry);
+    DS.Enabled                                      := False;
+  end;
   Self.Synchronize(
     Procedure begin
       RecordProcedure.SQLList.Connection.Connected := True;
       RecordProcedure.SQLList.Qry                  := Qry;
       RecordProcedure.SQLList.Qry.Connection       :=  RecordProcedure.SQLList.Connection;
-      RecordProcedure.SQLList.DS                   := DS;
       RecordProcedure.SQLList.DS.Enabled           := True;
     end);
   RecordProcedure.SQLList.Qry.Close;
@@ -553,12 +563,20 @@ begin
   for i := 0 to (Form.ComponentCount - 1) do begin
     if (Form.Components[i] is TDBGrid)  and (Copy(String(TDBGrid(Form.Components[i]).DataSource.Name),0,Pos('INACTIVE', String(TDBGrid(Form.Components[i]).DataSource.Name))-1) = DS.Name)
       then begin
-        Synchronize(Procedure begin TDBGrid(Form.Components[i]).DataSource := DS end);
+        Synchronize(Procedure begin
+                      TDBGrid(Form.Components[i]).DataSource.Enabled := False;
+                      TDBGrid(Form.Components[i]).DataSource := DS;
+                      TDBGrid(Form.Components[i]).DataSource.Enabled := True;
+                    end);
       end
       else
     if (Form.Components[i] is TDBMemo)  and (Copy(String(TDBMemo(Form.Components[i]).DataSource.Name),0,Pos('INACTIVE', String(TDBMemo(Form.Components[i]).DataSource.Name))-1) = DS.Name)
       then begin
-        Synchronize(procedure begin TDBMemo(Form.Components[i]).DataSource := DS end);
+        Synchronize(procedure begin
+                      TDBMemo(Form.Components[i]).DataSource.Enabled := False;
+                      TDBMemo(Form.Components[i]).DataSource := DS;
+                      TDBMemo(Form.Components[i]).DataSource.Enabled := True;
+                    end);
       end
   end;
 end;
