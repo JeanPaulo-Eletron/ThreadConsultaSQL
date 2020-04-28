@@ -39,6 +39,7 @@ type
       SQLList: TSQLList;
       EmConsulta: Boolean;
       Rest: Integer;
+      EmProcesso: Boolean;
     end;
 type
     TThreadMain = class(TThread)
@@ -135,9 +136,13 @@ begin
      Proc : TProc;
     begin
       RecordProcedure := FormMain.Thread1.MyListProcWillTimer.Items[I];
+      if RecordProcedure.EmProcesso
+        then exit;
+      RecordProcedure.EmProcesso := True;
       Proc := RecordProcedure.RProcedimento;
       Proc;
       TimerId   := SetTimer(0, IDEvent, RecordProcedure.Rest, @MyTimeout);
+      RecordProcedure.ID := Integer(Timerid);
     end;
     Proc;
   end;
@@ -350,6 +355,7 @@ begin
                                                           then TAdoQuery(Aux.DSList.List[I].DataSet).Connection.CommitTrans
                                                           else TAdoQuery(Aux.DSList.List[I].DataSet).Close;
                                                         VincularComponente(Aux.DSList.List[I]);
+                                                        Aux.EmProcesso := False;
                                                       end;
                                                     end).Start;
                             end;
@@ -371,6 +377,7 @@ begin
                                                          then TAdoQuery(Aux.DSList.List[I].DataSet).Connection.CommitTrans
                                                          else TAdoQuery(Aux.DSList.List[I].DataSet).Close;
                                                        VincularComponente(Aux.DSList.List[I]);
+                                                       Aux.EmProcesso := False;
                                                      end;
                                                    end).Start;
                            end;
