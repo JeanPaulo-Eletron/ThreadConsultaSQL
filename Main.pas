@@ -38,6 +38,7 @@ type
       DSList  : TList<TDataSource>;
       SQLList: TSQLList;
       EmConsulta: Boolean;
+      Rest: Integer;
     end;
 type
     TThreadMain = class(TThread)
@@ -76,6 +77,8 @@ public
     function  NovaConexao(DS: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;overload;
     procedure Kill;
     procedure CancelarConsulta(ProcedimentoOrigem: String);
+    procedure SetRest(Rest:Integer; ProcedimentoOrigem: String);
+    function  GetRest(ProcedimentoOrigem: String):Integer;
 end;
 
 TFormMain = class(TForm)
@@ -117,10 +120,21 @@ stdcall;
 var
    I: integer;
    Proc : TProc;
+   RecordProcedure: TRecordProcedure;
 begin
-  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) do if FormMain.Thread1.MyListProcWillTimer.List[I].ID = Integer(idEvent) then break;
-  Proc := FormMain.Thread1.MyListProcWillTimer.List[I].RProcedimento;
-  Proc;
+  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List)-1 do if FormMain.Thread1.MyListProcWillTimer.List[I].ID = Integer(idEvent) then begin
+    Proc :=
+    procedure
+    var
+     Proc : TProc;
+    begin
+      RecordProcedure := FormMain.Thread1.MyListProcWillTimer.Items[I];
+      Proc := RecordProcedure.RProcedimento;
+      Proc;
+      TimerId   := SetTimer(0, IDEvent, RecordProcedure.Rest, @MyTimeout);
+    end;
+    Proc;
+  end;
 end;
 
 // ------------------- THREAD CONSULTA -------------------- //
@@ -205,7 +219,6 @@ begin
   MyListProcAssync.Add(Self.RecordProcedure);
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 1, 0);
 end;
-
 
 procedure TThreadMain.TimerAssync(Rest: NativeUInt; Procedimento: TProcedure; NomeProcedimento: string);
 begin
@@ -306,10 +319,12 @@ var
 begin
   QtdeTimers := QtdeTimers + 1;
   Rest := Msg.wParam;
+  Aux  := MyListProcTimerAssync.ExtractAt(0);
 
   if Msg.lParam = 1
-    then Procedimento  := MyListProcTimerAssync.First.Procedimento
-    else RProcedimento := MyListProcTimerAssync.First.RProcedimento;
+    then Procedimento  := Aux.Procedimento
+    else RProcedimento := Aux.RProcedimento;
+
   Aux.DSList := TList<TDataSource>.Create;
   if Msg.lParam = 0
     then begin
@@ -354,13 +369,12 @@ begin
                                                    end).Start;
                            end;
     end;
-  Aux.Tipo := Rest;
+  Aux.Rest := Rest;
   Synchronize( procedure begin
-                 TimerId   := SetTimer(0, QtdeTimers, Rest, @MyTimeout);
+                 TimerId   := SetTimer(0, QtdeTimers, 0, @MyTimeout);
                  Aux.ID    := TimerID;
                  MyListProcWillTimer.Add(Aux);
                end );// não async vai no main
-  MyListProcTimerAssync.Delete(0);
 end;
 
 function TThreadMain.NovaConexao(DS: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;
@@ -526,6 +540,29 @@ begin
       end
   end;
 end;
+
+procedure TThreadMain.SetRest(Rest: Integer; ProcedimentoOrigem: String);
+var
+  I : Integer;
+  Procedimento: TRecordProcedure;
+begin
+  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem then begin
+     FLock.Acquire;
+     Procedimento      := FormMain.Thread1.MyListProcWillTimer.ExtractAt(I);
+     Procedimento.Rest := Rest;
+     FormMain.Thread1.MyListProcWillTimer.Insert(I, Procedimento);
+     FLock.Release;
+  end;
+end;
+
+function TThreadMain.GetRest(ProcedimentoOrigem: String): Integer;
+var
+  I : Integer;
+begin
+  Result := -1;
+  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem
+    then Result := FormMain.Thread1.MyListProcWillTimer.List[I].Rest;
+end;
 // ------------------- MAIN -------------------- //
 
 procedure TFormMain.Button3Click(Sender: TObject);
@@ -563,7 +600,8 @@ begin
   begin
     if StrToInt(FormMain.lbl1.Caption) > 2000
       then Thread1.Synchronize(procedure begin FormMain.lbl1.Caption := '0' end);
-  end);
+    Thread1.SetRest(Thread1.GetRest('Contar')+100,'Contar');
+  end,'Contar');
 end;
 
 procedure TFormMain.Consulta;
