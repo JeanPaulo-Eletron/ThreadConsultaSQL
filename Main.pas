@@ -46,8 +46,8 @@ private
     MyListProcAssync: TList<TRecordProcedure>;
     MyListProcWillProcAssync: TList<TRecordProcedure>;
     MyListProcTimerAssync: TList<TRecordProcedure>;
+    MyListProcWillTimer: TList<TRecordProcedure>;
     QtdeTimers: Integer;
-    MyListTimer: TList<TRecordProcedure>;
     ID : Integer;
     procedure Dispatcher;
     procedure WMProcGenericoAssync(Msg: TMsg);
@@ -120,8 +120,8 @@ var
    I: integer;
    Proc : TProc;
 begin
-  for I := 0 to Length(FormMain.Thread1.MyListTimer.List) do if FormMain.Thread1.MyListTimer.List[I].ID = Integer(idEvent) then break;
-  Proc := FormMain.Thread1.MyListTimer.List[I].RProcedimento;
+  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) do if FormMain.Thread1.MyListProcWillTimer.List[I].ID = Integer(idEvent) then break;
+  Proc := FormMain.Thread1.MyListProcWillTimer.List[I].RProcedimento;
   Proc;
 end;
 
@@ -346,8 +346,8 @@ begin
                            end;
     end;
   Aux.Tipo := Rest;
-  if MyListTimer = nil
-    then MyListTimer := TList<TRecordProcedure>.Create;
+  if MyListProcWillTimer = nil
+    then MyListProcWillTimer := TList<TRecordProcedure>.Create;
   if Msg.lParam <= 2
     then Aux.RProcedimento := procedure begin
                                 Synchronize(procedure
@@ -361,7 +361,7 @@ begin
   Synchronize( procedure begin
                  TimerId   := SetTimer(0, QtdeTimers, Rest, @MyTimeout);
                  Aux.ID    := TimerID;
-                 MyListTimer.Add(Aux);
+                 MyListProcWillTimer.Add(Aux);
                end );// não async vai no main
   MyListProcTimerAssync.Delete(0);
 end;
@@ -451,8 +451,11 @@ begin
 end;
 
 procedure TThreadMain.Kill;
+var
+  I: integer;
 begin
   KillTimer(0, TimerId);
+  for I := 0 to MyListProcWillProcAssync.Count - 1 do CancelarConsulta(MyListProcWillProcAssync.List[I].NomeProcedimento);//Cancelando todas as consultas
   if (EmProcesso) or (QtdeProcAsync <> 0)
     then Destroy
     else Terminate;
