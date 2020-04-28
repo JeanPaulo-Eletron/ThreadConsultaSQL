@@ -404,12 +404,21 @@ function TThreadMain.NovaConexao(DS: TDataSource; ProcedimentoOrigem: String):TR
 var
   Qry: TAdoQuery;
   ConnectionAux: TADOConnection;
-  I : Integer;
+  I, J : Integer;
   RecordProcedure: TRecordProcedure;
   SQLList: TSQLList;
  begin
-  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem
-     then while FormMain.Thread1.MyListProcWillTimer.List[I].EmProcesso do sleep(100);
+  //Está parte serve para controlar requisições de nova conexão concorrentes ao mesmo DS
+  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem then begin
+    J := 0;
+    while J < FormMain.Thread1.MyListProcWillTimer.List[I].DSList.Count do begin
+      while (FormMain.Thread1.MyListProcWillTimer.List[I].DSList.List[J] = DS) do begin
+        sleep(100);
+        J := -1; // -1 + 1 = 0 ::>Verifique todas novamente<::
+      end;
+      J := J + 1;
+    end;
+  end;
   ID := ID + 1;
   DesvincularComponente(DS);
   Qry := TAdoQuery(DS.DataSet);
