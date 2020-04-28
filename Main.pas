@@ -7,8 +7,10 @@
 // Timer foi criado para possibilitar ser thread save(Porém depois fazendo alguns testes com componente,
 // percebi que com algumas adptações manuais(como dar enabled false quando iniciar e true quando terminar,
 // e criar um váriavel global para saber se está executando quando mecher no enabled dele
-//[porem se quiser inativar depois da execução terá que tratar manualmente]) dá pra usar ele,
+// porem se quiser inativar depois da execução terá que tratar manualmente]) dá pra usar ele,
 // use qual preferir, mas o timer da thread é próprio para isso).
+
+// é intessante ver as opções do próprios componentes ADO para conexões assyncronas;
 unit Main;
 
 interface
@@ -85,8 +87,8 @@ public
     procedure CancelarConsulta(ProcedimentoOrigem: String);
     procedure SetRest(Rest:Integer; ProcedimentoOrigem: String);
     function  GetRest(ProcedimentoOrigem: String):Integer;
-    procedure  StopTimer(ProcedimentoOrigem: String);
-    procedure  StartTimer(ProcedimentoOrigem: String);
+    procedure StopTimer(ProcedimentoOrigem: String);
+    procedure StartTimer(ProcedimentoOrigem: String);
 end;
 
 TFormMain = class(TForm)
@@ -140,14 +142,18 @@ begin
     var
      Proc : TProc;
     begin
+      FLock.Acquire;
       RecordProcedure := FormMain.Thread1.MyListProcWillTimer.Items[I];
       if RecordProcedure.EmProcesso
         then exit;
       RecordProcedure.EmProcesso := True;
       Proc := RecordProcedure.RProcedimento;
+      FLock.Release;
       Proc;
+      FLock.Acquire;
       TimerId   := SetTimer(0, IDEvent, RecordProcedure.Rest, @MyTimeout);
       RecordProcedure.ID := Integer(Timerid);
+      FLock.Release;
     end;
     Proc;
   end;
@@ -405,7 +411,7 @@ var
   Qry: TAdoQuery;
   ConnectionAux: TADOConnection;
   I, J : Integer;
-  RecordProcedure: TRecordProcedure;
+  RecordProcedure, Aux: TRecordProcedure;
   SQLList: TSQLList;
  begin
   //Está parte serve para controlar requisições de nova conexão concorrentes ao mesmo DS
@@ -421,6 +427,7 @@ var
   end;
   ID := ID + 1;
   DesvincularComponente(DS);
+  FLock.Acquire;
   Qry := TAdoQuery(DS.DataSet);
   ConnectionAux := Qry.Connection;
   RecordProcedure.SQLList.Connection                      := TADOConnection.Create(FormMain);
@@ -436,7 +443,6 @@ var
   RecordProcedure.SQLList.Connection.Name                 := 'Thread'+IntToStr(ID)+IntToStr(Self.ThreadID)+ConnectionAux.Name;
   RecordProcedure.SQLList.Connection.Provider             := ConnectionAux.Provider;
   RecordProcedure.SQLList.Connection.Tag                  := ConnectionAux.Tag;
-
   if (DS <> nil) then begin
     RecordProcedure.SQLList.DS                      := TDataSource.Create(FormMain);
     RecordProcedure.SQLList.DS.AutoEdit             := DS.AutoEdit;
@@ -445,52 +451,34 @@ var
     RecordProcedure.SQLList.DS.DataSet              := TDataSet(SQLList.Qry);
     DS.Enabled                                      := False;
   end;
-  Self.Synchronize(
-    Procedure begin
-      RecordProcedure.SQLList.Connection.Connected := True;
-      RecordProcedure.SQLList.Qry                  := Qry;
-      RecordProcedure.SQLList.Qry.Connection       :=  RecordProcedure.SQLList.Connection;
-      RecordProcedure.SQLList.DS.Enabled           := True;
-    end);
+  RecordProcedure.SQLList.Connection.Connected := True;
+  RecordProcedure.SQLList.Qry                  := Qry;
+  RecordProcedure.SQLList.Qry.Connection       :=  RecordProcedure.SQLList.Connection;
+  RecordProcedure.SQLList.DS.Enabled           := True;
   RecordProcedure.SQLList.Qry.Close;
   RecordProcedure.SQLList.Connection.Connected := True;
   RecordProcedure.SQLList.Connection.BeginTrans;
   for I := 0 to Length(FormMain.Thread1.MyListProcWillProcAssync.List)-1 do
   if ProcedimentoOrigem = FormMain.Thread1.MyListProcWillProcAssync.List[I].NomeProcedimento
     then begin
-      Synchronize(
-        Procedure
-        var
-        Aux : TRecordProcedure;
-        begin
-          FLock.Acquire;
-          Aux                 := FormMain.Thread1.MyListProcWillProcAssync.ExtractAt(I);
-          Aux.DSList.Add(DS);
-          Aux.SQLList         := RecordProcedure.SQLList;
-          Aux.EmConsulta      := True;
-          FormMain.Thread1.MyListProcWillProcAssync.Insert(I, Aux);
-          RecordProcedure     := Aux;
-          FLock.Release;
-        end);
+      Aux                 := FormMain.Thread1.MyListProcWillProcAssync.ExtractAt(I);
+      Aux.DSList.Add(DS);
+      Aux.SQLList         := RecordProcedure.SQLList;
+      Aux.EmConsulta      := True;
+      FormMain.Thread1.MyListProcWillProcAssync.Insert(I, Aux);
+      RecordProcedure     := Aux;
     end;
   for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List)-1 do
   if ProcedimentoOrigem = FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento
     then begin
-      Synchronize(
-        Procedure
-        var
-          Aux : TRecordProcedure;
-        begin
-          FLock.Acquire;
-          RecordProcedure                 := FormMain.Thread1.MyListProcWillTimer.ExtractAt(I);
-          RecordProcedure.DSList.Add(DS);
-          RecordProcedure.SQLList         := SQLList;
-          RecordProcedure.EmConsulta      := True;
-          FormMain.Thread1.MyListProcWillTimer.Insert(I, RecordProcedure);
-          RecordProcedure := Aux;
-          FLock.Release;
-        end);
+      RecordProcedure                 := FormMain.Thread1.MyListProcWillTimer.ExtractAt(I);
+      RecordProcedure.DSList.Add(DS);
+      RecordProcedure.SQLList         := SQLList;
+      RecordProcedure.EmConsulta      := True;
+      FormMain.Thread1.MyListProcWillTimer.Insert(I, RecordProcedure);
+      RecordProcedure := Aux;
     end;
+  FLock.Release;
   Result := RecordProcedure;
 end;
 
@@ -498,27 +486,21 @@ end;
 procedure TThreadMain.CancelarConsulta(ProcedimentoOrigem: String);
 var
   I: Integer;
+  Procedimento : TRecordProcedure;
 begin
   for I := 0 to FormMain.Thread1.MyListProcWillProcAssync.Count - 1 do
   if FormMain.Thread1.MyListProcWillProcAssync.Items[I].NomeProcedimento = ProcedimentoOrigem then begin
     if FormMain.Thread1.MyListProcWillProcAssync.Items[I].EmConsulta then begin
-      Synchronize(
-        Procedure
-        var
-          Procedimento : TRecordProcedure;
-        begin
-          try
-            FLock.Acquire;
-            Procedimento := FormMain.Thread1.MyListProcWillProcAssync.ExtractAt(I);
-            Procedimento.SQLList.DS.Enabled := False;
-            Procedimento.SQLList.Connection.RollbackTrans;
-          finally
-            Procedimento.EmConsulta := False;
-            FormMain.Thread1.MyListProcWillProcAssync.Insert(I, Procedimento);
-            FLock.Release;
-          end;
-        end
-      );
+      try
+        FLock.Acquire;
+        Procedimento := FormMain.Thread1.MyListProcWillProcAssync.ExtractAt(I);
+        Procedimento.SQLList.DS.Enabled := False;
+        Procedimento.SQLList.Connection.RollbackTrans;
+      finally
+        Procedimento.EmConsulta := False;
+        FormMain.Thread1.MyListProcWillProcAssync.Insert(I, Procedimento);
+        FLock.Release;
+      end;
     end;
   end;
 end;
@@ -527,9 +509,9 @@ procedure TThreadMain.Kill;
 var
   I: integer;
 begin
-  FreeAndNil(FLock);
   for I := 0 to MyListProcWillTimer.Count - 1 do KillTimer(0, MyListProcWillTimer.List[I].ID);
   for I := 0 to MyListProcWillProcAssync.Count - 1 do CancelarConsulta(MyListProcWillProcAssync.List[I].NomeProcedimento);//Cancelando todas as consultas
+  FreeAndNil(FLock);
   if (EmProcesso) or (QtdeProcAsync <> 0)
     then Destroy
     else Terminate;
@@ -548,7 +530,9 @@ begin
         ID := ID + 1;
         DSAux      := TDataSource.Create(FormMain);
         DSAux.Name := DS.Name+'INACTIVE'+IntToStr(ID);
-        Synchronize(Procedure begin TDBGrid(Form.Components[i]).DataSource := DSAux end);
+        FLock.Acquire;
+        TDBGrid(Form.Components[i]).DataSource := DSAux;
+        FLock.Release;
       end
       else
     if (Form.Components[i] is TDBMemo)  and (TDBMemo(Form.Components[i]).DataSource = DS)
@@ -556,7 +540,9 @@ begin
         ID := ID + 1;
         DSAux      := TDataSource.Create(FormMain);
         DSAux.Name := DS.Name+'INACTIVE'+IntToStr(ID);
-        Synchronize(Procedure begin TDBMemo(Form.Components[i]).DataSource := DSAux end);
+        FLock.Acquire;
+        TDBMemo(Form.Components[i]).DataSource := DSAux;
+        FLock.Release;
       end;
   end;
 end;
@@ -572,20 +558,20 @@ begin
   for i := 0 to (Form.ComponentCount - 1) do begin
     if (Form.Components[i] is TDBGrid)  and (Copy(String(TDBGrid(Form.Components[i]).DataSource.Name),0,Pos('INACTIVE', String(TDBGrid(Form.Components[i]).DataSource.Name))-1) = DS.Name)
       then begin
-        Synchronize(Procedure begin
-                      TDBGrid(Form.Components[i]).DataSource.Enabled := False;
-                      TDBGrid(Form.Components[i]).DataSource := DS;
-                      TDBGrid(Form.Components[i]).DataSource.Enabled := True;
-                    end);
+        FLock.Acquire;
+        TDBGrid(Form.Components[i]).DataSource.Enabled := False;
+        TDBGrid(Form.Components[i]).DataSource := DS;
+        TDBGrid(Form.Components[i]).DataSource.Enabled := True;
+        FLock.Release;
       end
       else
     if (Form.Components[i] is TDBMemo)  and (Copy(String(TDBMemo(Form.Components[i]).DataSource.Name),0,Pos('INACTIVE', String(TDBMemo(Form.Components[i]).DataSource.Name))-1) = DS.Name)
       then begin
-        Synchronize(procedure begin
-                      TDBMemo(Form.Components[i]).DataSource.Enabled := False;
-                      TDBMemo(Form.Components[i]).DataSource := DS;
-                      TDBMemo(Form.Components[i]).DataSource.Enabled := True;
-                    end);
+        FLock.Acquire;
+        TDBMemo(Form.Components[i]).DataSource.Enabled := False;
+        TDBMemo(Form.Components[i]).DataSource := DS;
+        TDBMemo(Form.Components[i]).DataSource.Enabled := True;
+        FLock.Release;
       end
   end;
 end;
@@ -619,8 +605,10 @@ var
   I : Integer;
 begin
   for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem then begin
+    FLock.Acquire;
     TimerId   := SetTimer(0, FormMain.Thread1.MyListProcWillTimer.List[I].Tipo, FormMain.Thread1.MyListProcWillTimer.List[I].Rest, @MyTimeout);
     FormMain.Thread1.MyListProcWillTimer.List[I].ID := TimerId;
+    FLock.Release;
   end;
 end;
 
