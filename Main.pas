@@ -18,7 +18,7 @@ interface
 uses
     Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
     Dialogs, Db, Vcl.Grids, Vcl.DBGrids, Data.Win.ADODB, Vcl.StdCtrls,
-    {System.Rtti,} System.TypInfo, Generics.Collections, Vcl.ExtCtrls,
+    System.TypInfo, Generics.Collections, Vcl.ExtCtrls,
     Vcl.DBCtrls, SyncObjs;
 
 const
@@ -44,7 +44,7 @@ type
       DSList  : TList<TDataSource>;
       SQLList: TSQLList;
       EmConsulta: Boolean;
-      Rest: Integer;
+      RestInterval: Integer;
       EmProcesso: Boolean;
       Tag: NativeInt;
     end;
@@ -66,7 +66,7 @@ private
 protected
     procedure Execute; override;
 public
-    Rest : Integer;
+    RestInterval : Integer;
     EmProcesso: boolean;
     RecordProcedure:  TRecordProcedure;
     Connection: TADOConnection;
@@ -74,10 +74,10 @@ public
     DataSource: TDataSource;
     NaoPermitirFilaDeProcessos: Boolean;
     MyList:     TList<TSQLList>;
-    procedure TimerAssync(Rest: NativeUInt; Procedimento: TProc);overload;
-    procedure TimerAssync(Rest: NativeUInt; Procedimento: TProcedure);overload;
-    procedure TimerAssync(Rest: NativeUInt; Procedimento: TProc; NomeProcedimento: string);overload;
-    procedure TimerAssync(Rest: NativeUInt; Procedimento: TProcedure; NomeProcedimento: string);overload;
+    procedure TimerAssync(RestInterval: NativeUInt; Procedimento: TProc);overload;
+    procedure TimerAssync(RestInterval: NativeUInt; Procedimento: TProcedure);overload;
+    procedure TimerAssync(RestInterval: NativeUInt; Procedimento: TProc; NomeProcedimento: string);overload;
+    procedure TimerAssync(RestInterval: NativeUInt; Procedimento: TProcedure; NomeProcedimento: string);overload;
     procedure ProcedimentoGenericoAssync(Procedimento: TProcedure);overload;
     procedure ProcedimentoGenericoAssync(Procedimento: TProc);overload;
     procedure ProcedimentoGenericoAssync(Procedimento: TProcedure; NomeProcedimento: String);overload;
@@ -85,8 +85,8 @@ public
     function  NovaConexao(DS: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;overload;
     procedure Kill;
     procedure CancelarConsulta(ProcedimentoOrigem: String);
-    procedure SetRest(Rest:Integer; ProcedimentoOrigem: String);
-    function  GetRest(ProcedimentoOrigem: String):Integer;
+    procedure SetRestInterval(RestInterval:Integer; ProcedimentoOrigem: String);
+    function  GetRestInterval(ProcedimentoOrigem: String):Integer;
     procedure StopTimer(ProcedimentoOrigem: String);
     procedure StartTimer(ProcedimentoOrigem: String);
 end;
@@ -151,7 +151,7 @@ begin
       FLock.Release;
       Proc;
       FLock.Acquire;
-      TimerId   := SetTimer(0, IDEvent, RecordProcedure.Rest, @MyTimeout);
+      TimerId   := SetTimer(0, IDEvent, RecordProcedure.RestInterval, @MyTimeout);
       RecordProcedure.ID := Integer(Timerid);
       FLock.Release;
     end;
@@ -163,7 +163,7 @@ end;
 
 procedure TThreadMain.Execute;
 begin
-  Rest := 1;
+  RestInterval := 1;
   FreeOnTerminate := self.Finished;
   if MyListProcWillProcAssync = nil
     then MyListProcWillProcAssync := TList<TRecordProcedure>.Create;
@@ -182,9 +182,9 @@ var
 begin
   GetSystemInfo(Cores);
   if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then begin
-    Sleep(Rest);
+    Sleep(RestInterval);
     if Integer(Cores.dwNumberOfProcessors) > 1
-      then while QtdeProcAsync >= (Integer(Cores.dwNumberOfProcessors) - 1) do sleep(Rest);//Otimização para hardware não sobrecarregar de processos pessados.
+      then while QtdeProcAsync >= (Integer(Cores.dwNumberOfProcessors) - 1) do sleep(RestInterval);//Otimização para hardware não sobrecarregar de processos pessados.
     EmProcesso := true;
     ID := ID + 1;
     try
@@ -242,7 +242,7 @@ begin
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 1, 0);
 end;
 
-procedure TThreadMain.TimerAssync(Rest: NativeUInt; Procedimento: TProcedure; NomeProcedimento: string);
+procedure TThreadMain.TimerAssync(RestInterval: NativeUInt; Procedimento: TProcedure; NomeProcedimento: string);
 begin
   if NaoPermitirFilaDeProcessos and EmProcesso
     then exit;
@@ -251,20 +251,20 @@ begin
   RecordProcedure.Procedimento     := Procedimento;
   RecordProcedure.NomeProcedimento := NomeProcedimento;
   MyListProcTimerAssync.Add(Self.RecordProcedure);
-  PostThreadMessage(ThreadID, WM_TIMERTHREADASSYNC, Rest, 1);
+  PostThreadMessage(ThreadID, WM_TIMERTHREADASSYNC, RestInterval, 1);
 end;
 
-procedure TThreadMain.TimerAssync(Rest: NativeUInt; Procedimento: TProcedure);
+procedure TThreadMain.TimerAssync(RestInterval: NativeUInt; Procedimento: TProcedure);
 begin
-  TimerAssync(Rest,Procedimento,'');
+  TimerAssync(RestInterval,Procedimento,'');
 end;
 
-procedure TThreadMain.TimerAssync(Rest: NativeUInt; Procedimento: TProc);
+procedure TThreadMain.TimerAssync(RestInterval: NativeUInt; Procedimento: TProc);
 begin
-  TimerAssync(Rest,Procedimento,'');
+  TimerAssync(RestInterval,Procedimento,'');
 end;
 
-procedure TThreadMain.TimerAssync(Rest: NativeUInt; Procedimento: TProc; NomeProcedimento: string);
+procedure TThreadMain.TimerAssync(RestInterval: NativeUInt; Procedimento: TProc; NomeProcedimento: string);
 begin
   if NaoPermitirFilaDeProcessos and EmProcesso
     then exit;
@@ -273,7 +273,7 @@ begin
   Self.RecordProcedure.RProcedimento := Procedimento;
   RecordProcedure.NomeProcedimento := NomeProcedimento;
   MyListProcTimerAssync.Add(Self.RecordProcedure);
-  PostThreadMessage(ThreadID, WM_TIMERTHREADASSYNC, Rest, 2);
+  PostThreadMessage(ThreadID, WM_TIMERTHREADASSYNC, RestInterval, 2);
 end;
 
 procedure TThreadMain.WMProcGenericoAssync(Msg: TMsg);
@@ -339,10 +339,10 @@ var
   Aux: TRecordProcedure;
   Procedimento:  TProcedure;
   RProcedimento: TProc;
-  Rest: NativeUInt;
+  RestInterval: NativeUInt;
 begin
   QtdeTimers := QtdeTimers + 1;
-  Rest := Msg.wParam;
+  RestInterval := Msg.wParam;
   Aux  := MyListProcTimerAssync.ExtractAt(0);
 
   if Msg.lParam = 1
@@ -395,7 +395,7 @@ begin
                                                    end).Start;
                            end;
     end;
-  Aux.Rest := Rest;
+  Aux.RestInterval := RestInterval;
   Synchronize( procedure begin
                  TimerId   := SetTimer(0, QtdeTimers, 0, @MyTimeout);
                  Aux.ID    := TimerID;
@@ -444,12 +444,12 @@ var
   RecordProcedure.SQLList.Connection.Provider             := ConnectionAux.Provider;
   RecordProcedure.SQLList.Connection.Tag                  := ConnectionAux.Tag;
   if (DS <> nil) then begin
-    RecordProcedure.SQLList.DS                      := TDataSource.Create(FormMain);
-    RecordProcedure.SQLList.DS.AutoEdit             := DS.AutoEdit;
-    RecordProcedure.SQLList.DS.Name                 := 'Thread'+IntToStr(ID)+IntToStr(Self.ThreadID)+DS.Name;
-    RecordProcedure.SQLList.DS.Tag                  := DS.Tag;
-    RecordProcedure.SQLList.DS.DataSet              := TDataSet(SQLList.Qry);
-    DS.Enabled                                      := False;
+    RecordProcedure.SQLList.DS          := TDataSource.Create(FormMain);
+    RecordProcedure.SQLList.DS.AutoEdit := DS.AutoEdit;
+    RecordProcedure.SQLList.DS.Name     := 'Thread'+IntToStr(ID)+IntToStr(Self.ThreadID)+DS.Name;
+    RecordProcedure.SQLList.DS.Tag      := DS.Tag;
+    RecordProcedure.SQLList.DS.DataSet  := TDataSet(SQLList.Qry);
+    DS.Enabled                          := False;
   end;
   RecordProcedure.SQLList.Connection.Connected := True;
   RecordProcedure.SQLList.Qry                  := Qry;
@@ -576,7 +576,7 @@ begin
   end;
 end;
 
-procedure TThreadMain.SetRest(Rest: Integer; ProcedimentoOrigem: String);
+procedure TThreadMain.SetRestInterval(RestInterval: Integer; ProcedimentoOrigem: String);
 var
   I : Integer;
   Procedimento: TRecordProcedure;
@@ -584,19 +584,19 @@ begin
   for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem then begin
      FLock.Acquire;
      Procedimento      := FormMain.Thread1.MyListProcWillTimer.ExtractAt(I);
-     Procedimento.Rest := Rest;
+     Procedimento.RestInterval := RestInterval;
      FormMain.Thread1.MyListProcWillTimer.Insert(I, Procedimento);
      FLock.Release;
   end;
 end;
 
-function TThreadMain.GetRest(ProcedimentoOrigem: String): Integer;
+function TThreadMain.GetRestInterval(ProcedimentoOrigem: String): Integer;
 var
   I : Integer;
 begin
   Result := -1;
   for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem
-    then Result := FormMain.Thread1.MyListProcWillTimer.List[I].Rest;
+    then Result := FormMain.Thread1.MyListProcWillTimer.List[I].RestInterval;
 end;
 
 
@@ -606,7 +606,7 @@ var
 begin
   for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem then begin
     FLock.Acquire;
-    TimerId   := SetTimer(0, FormMain.Thread1.MyListProcWillTimer.List[I].Tipo, FormMain.Thread1.MyListProcWillTimer.List[I].Rest, @MyTimeout);
+    TimerId   := SetTimer(0, FormMain.Thread1.MyListProcWillTimer.List[I].Tipo, FormMain.Thread1.MyListProcWillTimer.List[I].RestInterval, @MyTimeout);
     FormMain.Thread1.MyListProcWillTimer.List[I].ID := TimerId;
     FLock.Release;
   end;
@@ -668,7 +668,7 @@ begin
   begin
     if StrToInt(FormMain.lbl1.Caption) > 2000
       then Thread1.Synchronize(procedure begin FormMain.lbl1.Caption := '0' end);
-    Thread1.SetRest(Thread1.GetRest('Contar')+10,'Contar');
+    Thread1.SetRestInterval(Thread1.GetRestInterval('Contar')+10,'Contar');
   end,'Contar');
 end;
 
