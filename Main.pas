@@ -304,14 +304,6 @@ begin
               else TAdoQuery(MyListProcWillProcAssync.List[I].DSList.List[J].DataSet).Close;
             VincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
           end;
-          {
-          if MyListProcWillProcAssync.List[I].SQLList.Connection <> nil then begin
-            MyListProcWillProcAssync.List[I].SQLList.Connection.Close;
-            MyListProcWillProcAssync.List[I].SQLList.Connection.Name := 'Old'+IntToStr(MyListProcWillProcAssync.List[I].ID);
-//            MyListProcWillProcAssync.List[I].SQLList.Connection.Destroy;
-//            MyListProcWillProcAssync.List[I].SQLList.Connection.Free;
-            MyListProcWillProcAssync.List[I].SQLList.Connection := nil;
-          end;}
           MyListProcWillProcAssync.Delete(I);
         end).Start;
     end
@@ -333,80 +325,12 @@ begin
               else TAdoQuery(MyListProcWillProcAssync.List[I].DSList.List[J].DataSet).Close;
             VincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
           end;
-          {
-          if MyListProcWillProcAssync.List[I].SQLList.Connection <> nil then begin
-            MyListProcWillProcAssync.List[I].SQLList.Connection.Close;
-            MyListProcWillProcAssync.List[I].SQLList.Connection.Name := 'Old'+IntToStr(MyListProcWillProcAssync.List[I].ID);
-//            MyListProcWillProcAssync.List[I].SQLList.Connection.Destroy;
-//            MyListProcWillProcAssync.List[I].SQLList.Connection.Free;
-            MyListProcWillProcAssync.List[I].SQLList.Connection := nil;
-          end;}
           MyListProcWillProcAssync.Delete(I);
         end
       ).Start;
     end;
     MyListProcAssync.Delete(0);
 end;
-
-{
-procedure TThreadMain.WMProcGenericoAssync(Msg: TMsg);
-var
-  Procedimento: TProc;
-  Aux: TRecordProcedure;
-begin
-  Aux := MyListProcAssync.First;
-  QtdeProcAsync := QtdeProcAsync + 1;
-  ID := ID + 1;
-  Aux.ID := ID;
-  MyListProcWillProcAssync.Add(Aux);
-  if Integer(Msg.wParam) = 0
-    then begin
-      CreateAnonymousThread(
-        procedure
-        var
-          I, J : Integer;
-        begin
-          for I := 0 to Length(FormMain.Thread1.MyListProcWillProcAssync.List) do if FormMain.Thread1.MyListProcWillProcAssync.List[I].ID = ID  then break;
-          MyListProcWillProcAssync.List[I].Procedimento;
-          if Self.Finished
-            then exit;
-          QtdeProcAsync := QtdeProcAsync - 1;
-          for J := 0 to MyListProcWillProcAssync.List[I].DSList.Count - 1 do begin
-            if MyListProcWillProcAssync.List[I].EmConsulta
-              then TAdoQuery(MyListProcWillProcAssync.List[I].DSList.List[J].DataSet).Connection.CommitTrans
-              else TAdoQuery(MyListProcWillProcAssync.List[I].DSList.List[J].DataSet).Close;
-            VincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
-            MyListProcWillProcAssync.List[I].SQLList.DS.Destroy;
-          end;
-          MyListProcWillProcAssync.Delete(I);
-        end).Start;
-    end
-    else begin
-      CreateAnonymousThread(
-        procedure
-        var
-          I, J : Integer;
-        begin
-          for I := 0 to Length(FormMain.Thread1.MyListProcWillProcAssync.List) do if FormMain.Thread1.MyListProcWillProcAssync.List[I].ID = ID  then break;
-          Procedimento := FormMain.Thread1.MyListProcWillProcAssync.List[I].RProcedimento;
-          Procedimento;
-          if Self.Finished
-            then exit;
-          QtdeProcAsync := QtdeProcAsync - 1;
-          for J := 0 to MyListProcWillProcAssync.List[I].DSList.Count - 1 do begin
-            if MyListProcWillProcAssync.List[I].EmConsulta
-              then TAdoQuery(MyListProcWillProcAssync.List[I].DSList.List[J].DataSet).Connection.CommitTrans
-              else TAdoQuery(MyListProcWillProcAssync.List[I].DSList.List[J].DataSet).Close;
-            VincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
-            MyListProcWillProcAssync.List[I].SQLList.DS.Destroy;
-          end;
-          MyListProcWillProcAssync.Delete(I);
-        end
-      ).Start;
-    end;
-    MyListProcAssync.Delete(0);
-end;
-}
 
 procedure TThreadMain.WMTIMERAssync(Msg: TMsg);
 var
@@ -477,151 +401,6 @@ begin
                  MyListProcWillTimer.Add(Aux);
                end );// não async vai no main
 end;
-
-{
-function TThreadMain.NovaConexao(DS: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;
-// é importante criar uma nova conexão ao acessar o banco pra não dar erro de ter duas consultas
-// retornando resultado ao mesmo tempo, e também para permitir o rollback sem afetar as outras consultas...
-var
-  Qry: TAdoQuery;
-  ConnectionAux: TADOConnection;
-  I, J : Integer;
-  RecordProcedure, Aux: TRecordProcedure;
-  SQLList: TSQLList;
- begin
-  //Está parte serve para controlar requisições de nova conexão concorrentes ao mesmo DS
-  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem then begin
-    J := 0;
-    while J < FormMain.Thread1.MyListProcWillTimer.List[I].DSList.Count do begin
-      while (FormMain.Thread1.MyListProcWillTimer.List[I].DSList.List[J] = DS) do begin
-        sleep(100);
-        J := -1; // -1 + 1 = 0 ::>Verifique todas novamente<::
-      end;
-      J := J + 1;
-    end;
-  end;
-  ID := ID + 1;
-  DesvincularComponente(DS);
-  FLock.Acquire;
-  Qry := TAdoQuery(DS.DataSet);
-  ConnectionAux := Qry.Connection;
-  RecordProcedure.SQLList.Connection                      := TADOConnection.Create(FormMain);
-  RecordProcedure.SQLList.Connection.ConnectionString     := ConnectionAux.ConnectionString;
-  RecordProcedure.SQLList.Connection.ConnectionTimeout    := ConnectionAux.ConnectionTimeout;
-  RecordProcedure.SQLList.Connection.ConnectOptions       := ConnectionAux.ConnectOptions;
-  RecordProcedure.SQLList.Connection.CursorLocation       := ConnectionAux.CursorLocation;
-  RecordProcedure.SQLList.Connection.DefaultDatabase      := ConnectionAux.DefaultDatabase;
-  RecordProcedure.SQLList.Connection.IsolationLevel       := ConnectionAux.IsolationLevel;
-  RecordProcedure.SQLList.Connection.KeepConnection       := ConnectionAux.KeepConnection;
-  RecordProcedure.SQLList.Connection.LoginPrompt          := ConnectionAux.LoginPrompt;
-  RecordProcedure.SQLList.Connection.Mode                 := ConnectionAux.Mode;
-  RecordProcedure.SQLList.Connection.Name                 := 'Thread'+IntToStr(ID)+IntToStr(Self.ThreadID)+ConnectionAux.Name;
-  RecordProcedure.SQLList.Connection.Provider             := ConnectionAux.Provider;
-  RecordProcedure.SQLList.Connection.Tag                  := ConnectionAux.Tag;
-  if (DS <> nil) then begin
-    RecordProcedure.SQLList.DS          := TDataSource.Create(FormMain);
-    RecordProcedure.SQLList.DS.AutoEdit := DS.AutoEdit;
-    RecordProcedure.SQLList.DS.Name     := 'Thread'+IntToStr(ID)+IntToStr(Self.ThreadID)+DS.Name;
-    RecordProcedure.SQLList.DS.Tag      := DS.Tag;
-    RecordProcedure.SQLList.DS.DataSet  := TDataSet(SQLList.Qry);
-    DS.Enabled                          := False;
-  end;
-  RecordProcedure.SQLList.Connection.Connected := True;
-  RecordProcedure.SQLList.Qry                  := Qry;
-  RecordProcedure.SQLList.Qry.Connection       :=  RecordProcedure.SQLList.Connection;
-  RecordProcedure.SQLList.DS.Enabled           := True;
-  RecordProcedure.SQLList.Qry.Close;
-  RecordProcedure.SQLList.Connection.Connected := True;
-  RecordProcedure.SQLList.Connection.BeginTrans;
-  for I := 0 to Length(FormMain.Thread1.MyListProcWillProcAssync.List)-1 do
-  if ProcedimentoOrigem = FormMain.Thread1.MyListProcWillProcAssync.List[I].NomeProcedimento
-    then begin
-      Aux                 := FormMain.Thread1.MyListProcWillProcAssync.ExtractAt(I);
-      Aux.DSList.Add(DS);
-      Aux.SQLList         := RecordProcedure.SQLList;
-      Aux.EmConsulta      := True;
-      FormMain.Thread1.MyListProcWillProcAssync.Insert(I, Aux);
-      RecordProcedure     := Aux;
-    end;
-  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List)-1 do
-  if ProcedimentoOrigem = FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento
-    then begin
-      RecordProcedure                 := FormMain.Thread1.MyListProcWillTimer.ExtractAt(I);
-      RecordProcedure.DSList.Add(DS);
-      RecordProcedure.SQLList         := SQLList;
-      RecordProcedure.EmConsulta      := True;
-      FormMain.Thread1.MyListProcWillTimer.Insert(I, RecordProcedure);
-      RecordProcedure := Aux;
-    end;
-  FLock.Release;
-  Result := RecordProcedure;
-end;
-
-
-procedure TThreadMain.CancelarConsulta(ProcedimentoOrigem: String);
-var
-  I: Integer;
-  Procedimento : TRecordProcedure;
-begin
-  for I := 0 to FormMain.Thread1.MyListProcWillProcAssync.Count - 1 do
-  if FormMain.Thread1.MyListProcWillProcAssync.Items[I].NomeProcedimento = ProcedimentoOrigem then begin
-    if FormMain.Thread1.MyListProcWillProcAssync.Items[I].EmConsulta then begin
-      try
-        FLock.Acquire;
-        Procedimento := FormMain.Thread1.MyListProcWillProcAssync.ExtractAt(I);
-        Procedimento.SQLList.DS.Enabled := False;
-        Procedimento.SQLList.Connection.RollbackTrans;
-      finally
-        Procedimento.EmConsulta := False;
-        FormMain.Thread1.MyListProcWillProcAssync.Insert(I, Procedimento);
-        FLock.Release;
-      end;
-    end;
-  end;
-end;
-
-procedure TThreadMain.Kill;
-var
-  I: integer;
-begin
-  for I := 0 to MyListProcWillTimer.Count - 1 do KillTimer(0, MyListProcWillTimer.List[I].ID);
-  for I := 0 to MyListProcWillProcAssync.Count - 1 do CancelarConsulta(MyListProcWillProcAssync.List[I].NomeProcedimento);//Cancelando todas as consultas
-  FreeAndNil(FLock);
-  if (EmProcesso) or (QtdeProcAsync <> 0)
-    then Destroy
-    else Terminate;
-end;
-
-procedure TThreadMain.DesvincularComponente(DS: TDataSource);
-var
-  i: integer;
-  Form: TForm;
-  DSAux : TDataSource;
-begin
-  Form := TForm(DS.Owner);
-  for i := 0 to (Form.ComponentCount - 1) do begin
-    if (Form.Components[i] is TDBGrid)  and (TDBGrid(Form.Components[i]).DataSource = DS)
-      then begin
-        ID := ID + 1;
-        DSAux      := TDataSource.Create(FormMain);
-        DSAux.Name := DS.Name+'INACTIVE'+IntToStr(ID);
-        FLock.Acquire;
-        TDBGrid(Form.Components[i]).DataSource := DSAux;
-        FLock.Release;
-      end
-      else
-    if (Form.Components[i] is TDBMemo)  and (TDBMemo(Form.Components[i]).DataSource = DS)
-      then begin
-        ID := ID + 1;
-        DSAux      := TDataSource.Create(FormMain);
-        DSAux.Name := DS.Name+'INACTIVE'+IntToStr(ID);
-        FLock.Acquire;
-        TDBMemo(Form.Components[i]).DataSource := DSAux;
-        FLock.Release;
-      end;
-  end;
-end;
-}
 
 function TThreadMain.NovaConexao(DS: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;
 // é importante criar uma nova conexão ao acessar o banco pra não dar erro de ter duas consultas
@@ -718,7 +497,9 @@ begin
       then begin
         FLock.Acquire;
         TDBGrid(Form.Components[i]).DataSource.Enabled := False;
-        TDBGrid(Form.Components[i]).DataSource := DS;
+        FLock.Release;
+        Synchronize(Procedure begin TDBGrid(Form.Components[i]).DataSource := DS end);
+        FLock.Acquire;
         TDBGrid(Form.Components[i]).DataSource.Enabled := True;
         FLock.Release;
       end
@@ -727,7 +508,9 @@ begin
       then begin
         FLock.Acquire;
         TDBMemo(Form.Components[i]).DataSource.Enabled := False;
-        TDBMemo(Form.Components[i]).DataSource := DS;
+        FLock.Release;
+        Synchronize(Procedure begin TDBMemo(Form.Components[i]).DataSource := DS end);
+        FLock.Acquire;
         TDBMemo(Form.Components[i]).DataSource.Enabled := True;
         FLock.Release;
       end
