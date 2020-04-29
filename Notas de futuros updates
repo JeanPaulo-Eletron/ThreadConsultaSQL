@@ -1,4 +1,5 @@
-:: Permitir setar o intervalo do timer ::
+:: Corrigir timer para procedimentos muito grandes ::
+:: Unificar TProc e TProcedure ::
 :: Fazer o teste intensivamente ::
 :: Refazer não Assyncs nos mesmos procedimentos do Assync com um "IF" (para trabalhar com vários objetos diferentes em fila) ::
 3.0
