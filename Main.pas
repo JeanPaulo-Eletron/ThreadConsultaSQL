@@ -623,10 +623,19 @@ begin
     end;
   end);
 end;
-
 procedure TFormMain.ComboBox1Change(Sender: TObject);
 begin
   TStyleManager.TrySetStyle(ComboBox1.Items[ComboBox1.ItemIndex]);
+end;
+procedure TFormMain.Button7Click(Sender: TObject);
+begin
+  Thread1.TimerAssync(100,
+  procedure
+  begin
+    if StrToInt(FormMain.lbl1.Caption) > 2000
+      then Thread1.Synchronize(procedure begin FormMain.lbl1.Caption := '0' end);
+    Thread1.SetRestInterval(Thread1.GetRestInterval('Contar')+10,'Contar');
+  end,'Contar');
 end;
 
 procedure TFormMain.Button7Click(Sender: TObject);
