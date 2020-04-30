@@ -62,12 +62,39 @@ object FormMain: TFormMain
     TabOrder = 3
     OnClick = Button5Click
   end
+  object Button7: TButton
+    Left = 455
+    Top = 8
+    Width = 115
+    Height = 25
+    Caption = 'Timer Thread Assync'
+    TabOrder = 4
+    OnClick = Button7Click
+  end
+  object Button1: TButton
+    Left = 455
+    Top = 58
+    Width = 115
+    Height = 25
+    Caption = 'Stop'
+    TabOrder = 5
+    OnClick = Button1Click
+  end
+  object Button2: TButton
+    Left = 455
+    Top = 33
+    Width = 115
+    Height = 25
+    Caption = 'Start'
+    TabOrder = 6
+    OnClick = Button2Click
+  end
   object ComboBox1: TComboBox
     Left = 584
-    Top = 10
+    Top = 8
     Width = 145
     Height = 21
-    TabOrder = 4
+    TabOrder = 7
     Text = 'ComboBox1'
     OnChange = ComboBox1Change
   end
