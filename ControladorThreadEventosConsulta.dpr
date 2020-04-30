@@ -2,7 +2,7 @@ program ControladorThreadEventosConsulta;
 
 uses
   Vcl.Forms,
-  Main in 'Main.pas' {Form1},
+  Main in 'Main.pas' {FormMain},
   Vcl.Themes,
   Vcl.Styles;
 
