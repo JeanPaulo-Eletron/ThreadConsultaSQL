@@ -191,6 +191,7 @@ var
   Procedimento: TProc;
   Aux: TRecordProcedure;
   J: Integer;
+  NomeProcedimento : String;
 begin
   FormMain.FLock.Acquire;
   Aux := MyListProcAssync.First;
@@ -202,18 +203,17 @@ begin
   if (Aux.NomeProcedimento = FormMain.Thread1.MyListProcWillProcAssync.List[J].NomeProcedimento) then begin
     abort;
   end else inc(J);
-  Aux.EmProcesso := True;
+  Aux.EmProcesso   := True;
+  NomeProcedimento := Aux.NomeProcedimento;
   MyListProcWillProcAssync.Add(Aux);
   FormMain.FLock.Release;
   CreateAnonymousThread(
     procedure
     var
       I, K, L: Integer;
-      NomeProcedimento : String;
     begin
       FormMain.FLock.Acquire;
-      for I := 0 to FormMain.Thread1.MyListProcWillProcAssync.Count - 1 do if FormMain.Thread1.MyListProcWillProcAssync.List[I].ID = ID  then break;
-      NomeProcedimento := MyListProcWillProcAssync.List[I].NomeProcedimento;
+      for I := 0 to FormMain.Thread1.MyListProcWillProcAssync.Count - 1 do if FormMain.Thread1.MyListProcWillProcAssync.List[I].NomeProcedimento = NomeProcedimento  then break;
       FormMain.FLock.Release;
       if Integer(Msg.wParam) = 0
         then MyListProcWillProcAssync.List[I].Procedimento
