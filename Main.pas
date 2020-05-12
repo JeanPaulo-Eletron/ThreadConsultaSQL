@@ -50,7 +50,7 @@ type
       DSList  : TList<TDataSource>;
     end;
 type
-    TThreadMain = class(TThread)
+    TThread = class(System.Classes.TThread)
 private
     QtdeProcAsync: Integer;
     FilaProcAssyncPendentesDeExecucao: TList<TRecordProcedure>;
@@ -73,6 +73,9 @@ public
     DataSource: TDataSource;
     NaoPermitirFilaDeProcessos: Boolean;
     MyList:     TList<TSQLList>;
+    FLock : TCriticalSection;
+    procedure Synchronize(AMethod: TThreadMethod); overload; inline;
+    procedure Synchronize(AThreadProc: TThreadProcedure); overload; inline;
     procedure ProcedimentoGenericoAssync(Procedimento: TProcedure);overload;
     procedure ProcedimentoGenericoAssync(Procedimento: TProc);overload;
     procedure ProcedimentoGenericoAssync(Procedimento: TProcedure; NomeProcedimento: String);overload;
@@ -101,24 +104,20 @@ TFormMain = class(TForm)
     procedure FormShow(Sender: TObject);
 private
 { Private declarations }
-    Thread1 : TThreadMain;
+    Thread1 : TThread;
 public
 { Public declarations }
-    FLock : TCriticalSection;
     procedure Consulta;
-    procedure Synchronize(AThreadProc: TProc);overload;
-    procedure Synchronize(AThreadProc: TProc; Thread: TThread);overload;
 end;
 var
   FormMain: TFormMain;
-  Timerid: UINT;
 implementation
 
 {$R *.DFM}
 
 // ------------------- THREAD CONSULTA -------------------- //
 
-procedure TThreadMain.Execute;
+procedure TThread.Execute;
 begin
   RestInterval := 1;
   FreeOnTerminate := self.Finished;
@@ -131,8 +130,8 @@ begin
   end;
 end;
 
-procedure TThreadMain.Dispatcher;
-var ThreadAntiga : TThreadMain;
+procedure TThread.Dispatcher;
+var ThreadAntiga : TThread;
 begin
   Sleep(RestInterval);
   if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then begin
@@ -154,23 +153,23 @@ begin
       end;
     except
       ThreadAntiga := FormMain.Thread1;
-      FormMain.Thread1 := TThreadMain.Create(false);
+      FormMain.Thread1 := TThread.Create(false);
       ThreadAntiga.Terminate;
     end;
   end
 end;
 
-procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProcedure);
+procedure TThread.ProcedimentoGenericoAssync(Procedimento: TProcedure);
 begin
   ProcedimentoGenericoAssync(Procedimento,'');
 end;
 
-procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProc);
+procedure TThread.ProcedimentoGenericoAssync(Procedimento: TProc);
 begin
   ProcedimentoGenericoAssync(Procedimento,'');
 end;
 
-procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProcedure; NomeProcedimento: String);
+procedure TThread.ProcedimentoGenericoAssync(Procedimento: TProcedure; NomeProcedimento: String);
 begin
   if NaoPermitirFilaDeProcessos and EmProcesso
     then exit;
@@ -185,7 +184,7 @@ begin
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 0, 0);
 end;
 
-procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProc; NomeProcedimento: String);
+procedure TThread.ProcedimentoGenericoAssync(Procedimento: TProc; NomeProcedimento: String);
 begin
   if NaoPermitirFilaDeProcessos and EmProcesso
     then exit;
@@ -200,7 +199,7 @@ begin
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 1, 0);
 end;
 
-procedure TThreadMain.WMProcGenericoAssync(Msg: TMsg);
+procedure TThread.WMProcGenericoAssync(Msg: TMsg);
 var
   Procedimento: TProc;
   RecordProcedure: TRecordProcedure;
@@ -250,7 +249,7 @@ begin
   FilaProcAssyncPendentesDeExecucao.Remove(RecordProcedure);
 end;
 
-function TThreadMain.NovaConexao(DataSourceReferencia: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;
+function TThread.NovaConexao(DataSourceReferencia: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;
 // é importante criar uma nova conexão ao acessar o banco pra não dar erro de ter duas consultas
 // retornando resultado ao mesmo tempo, e também para permitir o rollback sem afetar as outras consultas...
 var
@@ -299,7 +298,7 @@ begin
   Result := RecordProcedureRetorno;
 end;
 
-procedure TThreadMain.CancelarConsulta(ProcedimentoOrigem: String);
+procedure TThread.CancelarConsulta(ProcedimentoOrigem: String);
 var
   I, J: Integer;
   Procedimento : TRecordProcedure;
@@ -320,7 +319,7 @@ begin
   end;
 end;
 
-procedure TThreadMain.Kill;
+procedure TThread.Kill;
 var
   I: integer;
 begin
@@ -331,7 +330,7 @@ begin
     else Terminate;
 end;
 
-procedure TThreadMain.DesvincularComponente(DS: TDataSource);
+procedure TThread.DesvincularComponente(DS: TDataSource);
 var
   i: integer;
   Form: TForm;
@@ -361,7 +360,7 @@ begin
   end;
 end;
 
-procedure TThreadMain.VincularComponente(DS: TDataSource);
+procedure TThread.VincularComponente(DS: TDataSource);
 var
   i: integer;
   Form: TForm;
@@ -382,6 +381,16 @@ begin
         DS.Enabled := True;
       end
   end;
+end;
+
+procedure TThread.Synchronize(AMethod: TThreadMethod);
+begin
+  Synchronize(Self, AMethod);
+end;
+
+procedure TThread.Synchronize(AThreadProc: TThreadProcedure);
+begin
+  Synchronize(Self, AThreadProc);
 end;
 
 // ------------------- MAIN -------------------- //
@@ -437,7 +446,7 @@ end;
 
 procedure TFormMain.FormCreate(Sender: TObject);
 begin
-  Thread1 := TThreadMain.Create(False);
+  Thread1 := TThread.Create(False);
 end;
 
 procedure TFormMain.FormDestroy(Sender: TObject);
@@ -461,13 +470,4 @@ begin
   end;
 end;
 
-procedure TFormMain.Synchronize(AThreadProc: TProc);
-begin
-  Thread1.Synchronize(Thread1,TThreadProcedure(AThreadProc));
-end;
-
-procedure TFormMain.Synchronize(AThreadProc: TProc; Thread: TThread);
-begin
-  Thread1.Synchronize(Thread,TThreadProcedure(AThreadProc));
-end;
 end.
