@@ -6,6 +6,7 @@
 }
 
 // é intessante ver as opções do próprios componentes ADO para conexões assyncronas;
+// Fazer Call Back
 unit Main;
 
 interface
@@ -58,6 +59,7 @@ private
     ID : Integer;
     Cores : TSystemInfo;
     Msg : TMsg;
+    NomeProcedimento : TList<String>;
     procedure Dispatcher;
     procedure WMProcGenericoAssync(Msg: TMsg);
     procedure DesvincularComponente(DS: TDataSource);
@@ -123,8 +125,9 @@ begin
   FreeOnTerminate := self.Finished;
   if FilaProcAssyncEmExecucao = nil
     then FilaProcAssyncEmExecucao := TList<TRecordProcedure>.Create;
-  FormMain.FLock := TCriticalSection.Create;
+  FLock := TCriticalSection.Create;
   GetSystemInfo(Cores);
+  NomeProcedimento := TList<String>.Create;
   while not Terminated do begin
     Dispatcher;
   end;
@@ -204,9 +207,8 @@ var
   Procedimento: TProc;
   RecordProcedure: TRecordProcedure;
   I: Integer;
-  NomeProcedimento : String;
 begin
-  RecordProcedure := FilaProcAssyncPendentesDeExecucao.First;// Pegando primeira requisição da fila
+  RecordProcedure := FilaProcAssyncPendentesDeExecucao.ExtractAt(0);// Pegando primeira requisição da fila
   QtdeProcAsync := QtdeProcAsync + 1;
   ID := ID + 1;
   RecordProcedure.InformacoesAdicionais.ID := ID;
@@ -217,18 +219,21 @@ begin
   end;
 
   RecordProcedure.Status.EmProcesso  := True;
-  NomeProcedimento            := RecordProcedure.InformacoesAdicionais.NomeProcedimento;
+  NomeProcedimento.Add(RecordProcedure.InformacoesAdicionais.NomeProcedimento);
   FilaProcAssyncEmExecucao.Add(RecordProcedure);
   CreateAnonymousThread(
     procedure
     var
       I, K, L: Integer;
       RecordProcedure: TRecordProcedure;
+      NomeProcedimento: String;
     begin
-      FormMain.FLock.Acquire;
-      for I := 0 to FormMain.Thread1.FilaProcAssyncEmExecucao.Count - 1 do if FormMain.Thread1.FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento = NomeProcedimento  then break;
+      FLock.Acquire;
+      NomeProcedimento := FormMain.Thread1.NomeProcedimento.ExtractAt(0);
+      for I := 0 to FormMain.Thread1.FilaProcAssyncEmExecucao.Count - 1 do
+      if FormMain.Thread1.FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento = NomeProcedimento  then break;
       RecordProcedure := FormMain.Thread1.FilaProcAssyncEmExecucao.Items[I];
-      FormMain.FLock.Release;
+      FLock.Release;
       if Integer(Msg.wParam) = 0
         then RecordProcedure.Procedimento
         else begin
@@ -246,14 +251,11 @@ begin
       end;
       FilaProcAssyncEmExecucao.Remove(RecordProcedure);
     end).Start;
-  FilaProcAssyncPendentesDeExecucao.Remove(RecordProcedure);
 end;
 
 function TThread.NovaConexao(DataSourceReferencia: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;
 // é importante criar uma nova conexão ao acessar o banco pra não dar erro de ter duas consultas
 // retornando resultado ao mesmo tempo, e também para permitir o rollback sem afetar as outras consultas...
-var
-  RecordProcedureRetorno: TRecordProcedure;
 begin
   Self.Synchronize(
   Procedure
@@ -261,6 +263,7 @@ begin
     I: Integer;
     SQLList: TSQLList;
     Status: TStatus;
+    RecordProcedureRetorno: TRecordProcedure;
   begin
     ID := ID + 1;
     DataSourceReferencia.Enabled := False;
@@ -294,8 +297,11 @@ begin
         RecordProcedure.DSList.Add(DataSourceReferencia);
         RecordProcedure.SQLList         := RecordProcedureRetorno.SQLList;
       end;
+    FLock.Acquire;
+    RecordProcedure := RecordProcedureRetorno;
   end);
-  Result := RecordProcedureRetorno;
+  Result := RecordProcedure;
+  FLock.Release;
 end;
 
 procedure TThread.CancelarConsulta(ProcedimentoOrigem: String);
@@ -324,7 +330,7 @@ var
   I: integer;
 begin
   for I := 0 to FilaProcAssyncEmExecucao.Count - 1 do CancelarConsulta(FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento);//Cancelando todas as consultas
-  FreeAndNil(FormMain.FLock);
+  FreeAndNil(FLock);
   if (EmProcesso) or (QtdeProcAsync <> 0)
     then Destroy
     else Terminate;
@@ -343,9 +349,7 @@ begin
         ID := ID + 1;
         DSAux      := TDataSource.Create(FormMain);
         DSAux.Name := DS.Name+'INACTIVE'+IntToStr(ID);
-        FormMain.FLock.Acquire;
-        TDBGrid(Form.Components[i]).DataSource := DSAux;
-        FormMain.FLock.Release;
+        Synchronize(Procedure begin TDBGrid(Form.Components[i]).DataSource := DSAux; end);
       end
       else
     if (Form.Components[i] is TDBMemo)  and (TDBMemo(Form.Components[i]).DataSource = DS)
@@ -353,9 +357,7 @@ begin
         ID := ID + 1;
         DSAux      := TDataSource.Create(FormMain);
         DSAux.Name := DS.Name+'INACTIVE'+IntToStr(ID);
-        FormMain.FLock.Acquire;
-        TDBMemo(Form.Components[i]).DataSource := DSAux;
-        FormMain.FLock.Release;
+        Synchronize(Procedure begin TDBMemo(Form.Components[i]).DataSource := DSAux; end);
       end;
   end;
 end;
@@ -364,21 +366,24 @@ procedure TThread.VincularComponente(DS: TDataSource);
 var
   i: integer;
   Form: TForm;
-  Qry:   TAdoQuery;
 begin
-  Qry:= TAdoQuery(DS.DataSet);
-  Form := TForm(Qry.Owner);
+  Form := TForm(DS.Owner);
   for i := 0 to (Form.ComponentCount - 1) do begin
     if (Form.Components[i] is TDBGrid)  and (Copy(String(TDBGrid(Form.Components[i]).DataSource.Name),0,Pos('INACTIVE', String(TDBGrid(Form.Components[i]).DataSource.Name))-1) = DS.Name)
       then begin
-        Synchronize(Procedure begin TDBGrid(Form.Components[i]).DataSource := DS end);
-        DS.Enabled := True;
+        Synchronize(Procedure begin
+          TDBGrid(Form.Components[i]).DataSource := DS;
+          DS.Enabled := True;
+        end);
       end
       else
     if (Form.Components[i] is TDBMemo)  and (Copy(String(TDBMemo(Form.Components[i]).DataSource.Name),0,Pos('INACTIVE', String(TDBMemo(Form.Components[i]).DataSource.Name))-1) = DS.Name)
       then begin
-        Synchronize(Procedure begin TDBMemo(Form.Components[i]).DataSource := DS end);
-        DS.Enabled := True;
+        Synchronize(
+        Procedure begin
+          TDBMemo(Form.Components[i]).DataSource := DS;
+          DS.Enabled := True;
+        end);
       end
   end;
 end;
