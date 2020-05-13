@@ -41,6 +41,7 @@ type
       ID   : Integer;
       NomeProcedimento : String;
       Tag: NativeInt;
+      CallBack: TProc;
     end;
     TRecordProcedure = record
       Procedimento : TProcedure;
@@ -82,6 +83,7 @@ public
     procedure ProcedimentoGenericoAssync(Procedimento: TProc);overload;
     procedure ProcedimentoGenericoAssync(Procedimento: TProcedure; NomeProcedimento: String);overload;
     procedure ProcedimentoGenericoAssync(Procedimento: TProc; NomeProcedimento: String);overload;
+    procedure PrepararProcedimento(Procedimento: TRecordProcedure; NomeProcedimento: String);
     function  NovaConexao(DataSourceReferencia: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;overload;
     procedure Kill;
     procedure CancelarConsulta(ProcedimentoOrigem: String);
@@ -174,32 +176,33 @@ end;
 
 procedure TThread.ProcedimentoGenericoAssync(Procedimento: TProcedure; NomeProcedimento: String);
 begin
-  if NaoPermitirFilaDeProcessos and EmProcesso
-    then exit;
-  if FilaProcAssyncPendentesDeExecucao = nil
-    then  FilaProcAssyncPendentesDeExecucao := TList<TRecordProcedure>.Create;
+  FLock.Acquire;
   RecordProcedure.Procedimento := Procedimento;
-  RecordProcedure.InformacoesAdicionais := TInformacoesAdicionais.Create;
-  RecordProcedure.InformacoesAdicionais.NomeProcedimento := NomeProcedimento;
-  RecordProcedure.DSList := TList<TDataSource>.Create;
-  RecordProcedure.Status := TStatus.Create;
-  FilaProcAssyncPendentesDeExecucao.Add(Self.RecordProcedure);
+  PrepararProcedimento(RecordProcedure, NomeProcedimento);
   PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 0, 0);
+  FLock.Release;
 end;
 
 procedure TThread.ProcedimentoGenericoAssync(Procedimento: TProc; NomeProcedimento: String);
+begin
+  FLock.Acquire;
+  RecordProcedure.RProcedimento := Procedimento;
+  PrepararProcedimento(RecordProcedure, NomeProcedimento);
+  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 1, 0);
+  FLock.Release;
+end;
+
+procedure TThread.PrepararProcedimento(Procedimento: TRecordProcedure;  NomeProcedimento: String);
 begin
   if NaoPermitirFilaDeProcessos and EmProcesso
     then exit;
   if FilaProcAssyncPendentesDeExecucao = nil
     then  FilaProcAssyncPendentesDeExecucao := TList<TRecordProcedure>.Create;
-  RecordProcedure.RProcedimento := Procedimento;
-  RecordProcedure.InformacoesAdicionais := TInformacoesAdicionais.Create;
-  RecordProcedure.InformacoesAdicionais.NomeProcedimento := NomeProcedimento;
-  RecordProcedure.DSList := TList<TDataSource>.Create;
-  RecordProcedure.Status := TStatus.Create;
-  FilaProcAssyncPendentesDeExecucao.Add(Self.RecordProcedure);
-  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 1, 0);
+  Procedimento.InformacoesAdicionais := TInformacoesAdicionais.Create;
+  Procedimento.InformacoesAdicionais.NomeProcedimento := NomeProcedimento;
+  Procedimento.DSList := TList<TDataSource>.Create;
+  Procedimento.Status := TStatus.Create;
+  FilaProcAssyncPendentesDeExecucao.Add(Procedimento);
 end;
 
 procedure TThread.WMProcGenericoAssync(Msg: TMsg);
@@ -209,7 +212,6 @@ var
   I: Integer;
 begin
   RecordProcedure := FilaProcAssyncPendentesDeExecucao.ExtractAt(0);// Pegando primeira requisição da fila
-  QtdeProcAsync := QtdeProcAsync + 1;
   ID := ID + 1;
   RecordProcedure.InformacoesAdicionais.ID := ID;
 
@@ -217,14 +219,15 @@ begin
   if (RecordProcedure.InformacoesAdicionais.NomeProcedimento = FormMain.Thread1.FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento) then begin
     exit;
   end;
-
+  QtdeProcAsync := QtdeProcAsync + 1;
   RecordProcedure.Status.EmProcesso  := True;
   NomeProcedimento.Add(RecordProcedure.InformacoesAdicionais.NomeProcedimento);
   FilaProcAssyncEmExecucao.Add(RecordProcedure);
+  EmProcesso := True;
   CreateAnonymousThread(
     procedure
     var
-      I, K, L: Integer;
+      I, L: Integer;
       RecordProcedure: TRecordProcedure;
       NomeProcedimento: String;
     begin
@@ -233,6 +236,7 @@ begin
       for I := 0 to FormMain.Thread1.FilaProcAssyncEmExecucao.Count - 1 do
       if FormMain.Thread1.FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento = NomeProcedimento  then break;
       RecordProcedure := FormMain.Thread1.FilaProcAssyncEmExecucao.Items[I];
+      Self.EmProcesso := False;
       FLock.Release;
       if Integer(Msg.wParam) = 0
         then RecordProcedure.Procedimento
@@ -251,6 +255,7 @@ begin
       end;
       FilaProcAssyncEmExecucao.Remove(RecordProcedure);
     end).Start;
+  while EmProcesso do Sleep(RestInterval);
 end;
 
 function TThread.NovaConexao(DataSourceReferencia: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;
