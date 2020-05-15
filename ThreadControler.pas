@@ -80,10 +80,19 @@ public
     procedure CancelarConsulta(ProcedimentoOrigem: String);
 end;
 TForm = class(Vcl.Forms.TForm)
+  procedure FormDestroy(Sender: TObject);
+  procedure FormCreate(Sender: TObject);
+private
+  function IsForm: Boolean;
+protected
+  FOnDestroy: TNotifyEvent;
+  FOnCreate:  TNotifyEvent;
+  function GetOnDestroy: TNotifyEvent;
+  function GetOnCreate: TNotifyEvent;
+  property OnDestroy: TNotifyEvent read GetOnDestroy write FOnDestroy stored IsForm;
+  property OnCreate: TNotifyEvent  read GetOnCreate  write FOnCreate stored IsForm;
 public
   Thread : TThread;
-  procedure FormCreate(Sender: TObject);virtual;
-  procedure FormDestroy(Sender: TObject);virtual;
 end;
 var
   Form: TForm;
@@ -93,12 +102,9 @@ implementation
 uses Main;
 
 procedure TForm.FormCreate(Sender: TObject);
-var
-  aux : TNotifyEvent;
 begin
   TForm(Sender).Thread       := TThread.Create(False);
   TForm(Sender).Thread.Owner := Sender;
-  TForm(Sender).OnDestroy    := Main.FormMain.FormDestroy;
 end;
 
 procedure TForm.FormDestroy(Sender: TObject);
@@ -106,6 +112,22 @@ begin
   Thread.Kill;
 end;
 
+function TForm.GetOnCreate: TNotifyEvent;
+begin
+  FOnCreate := FormCreate;
+  Result    := FOnCreate;
+end;
+
+function TForm.GetOnDestroy: TNotifyEvent;
+begin
+  FOnDestroy := FormDestroy;
+  result := FOnDestroy;
+end;
+
+function TForm.IsForm: Boolean;
+begin
+  Result := true;
+end;
 // ------------------- THREAD CONSULTA -------------------- //
 
 procedure TThread.Execute;
@@ -389,7 +411,6 @@ procedure TThread.Synchronize(AThreadProc: TThreadProcedure);
 begin
   Synchronize(Self, AThreadProc);
 end;
-
 
 end.
 

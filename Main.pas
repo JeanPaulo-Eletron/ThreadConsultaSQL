@@ -39,7 +39,6 @@ TFormMain = class(TForm)
     procedure Button5Click(Sender: TObject);
     procedure ComboBox1Change(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure FormCreate(Sender: TObject); override;
 private
 { Private declarations }
 public
@@ -51,12 +50,6 @@ var
 implementation
 
 {$R *.DFM}
-
-procedure TFormMain.FormCreate(Sender: TObject);
-begin
-  inherited;
-//
-end;
 
 // ------------------- MAIN -------------------- //
 

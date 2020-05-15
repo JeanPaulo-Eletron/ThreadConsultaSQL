@@ -5,7 +5,7 @@ uses
   Main in 'Main.pas' {FormMain},
   Vcl.Themes,
   Vcl.Styles,
-  ThreadControler in 'ThreadControler.pas';
+  ThreadControler in 'ThreadControler.pas' {Form};
 
 {$R *.res}
 
