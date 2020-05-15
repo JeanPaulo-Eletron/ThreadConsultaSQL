@@ -109,7 +109,8 @@ end;
 
 procedure TForm.FormDestroy(Sender: TObject);
 begin
-  Thread.Kill;
+  if Thread <> nil
+    then Thread.Kill;
 end;
 
 function TForm.GetOnCreate: TNotifyEvent;
@@ -258,8 +259,8 @@ begin
       QtdeProcAsync := QtdeProcAsync - 1;
       for L := 0 to RecordProcedure.DSList.Count - 1 do begin
         if RecordProcedure.Status.EmConsulta
-          then TAdoQuery(RecordProcedure.DSList.List[L].DataSet).Connection.CommitTrans
-          else TAdoQuery(RecordProcedure.DSList.List[L].DataSet).Close;
+          then Synchronize(Procedure Begin TAdoQuery(RecordProcedure.DSList.List[L].DataSet).Connection.CommitTrans end)
+          else Synchronize(Procedure Begin TAdoQuery(RecordProcedure.DSList.List[L].DataSet).Close end);
         VincularComponente(RecordProcedure.DSList.List[L]);
       end;
       FilaProcAssyncEmExecucao.Remove(RecordProcedure);
@@ -319,24 +320,28 @@ begin
 end;
 
 procedure TThread.CancelarConsulta(ProcedimentoOrigem: String);
-var
+begin
+  Queue(
+  Procedure
+  var
   I, J: Integer;
   Procedimento : TRecordProcedure;
-begin
-  for I := 0 to FilaProcAssyncEmExecucao.Count - 1 do
-  if FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento = ProcedimentoOrigem then begin
-    if FilaProcAssyncEmExecucao.Items[I].Status.EmConsulta then begin
-      try
-        Procedimento := FilaProcAssyncEmExecucao.Items[I];
-        for J := 0 to  Procedimento.DSList.Count - 1 do begin
-          Procedimento.DSList.Items[J].Enabled := False;
-          TADOQuery(Procedimento.DSList.Items[J].DataSet).Connection.RollbackTrans;
+  begin
+    for I := 0 to FilaProcAssyncEmExecucao.Count - 1 do
+    if FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento = ProcedimentoOrigem then begin
+      if FilaProcAssyncEmExecucao.Items[I].Status.EmConsulta then begin
+        try
+          Procedimento := FilaProcAssyncEmExecucao.Items[I];
+          for J := 0 to  Procedimento.DSList.Count - 1 do begin
+            Procedimento.DSList.Items[J].Enabled := False;
+            TADOQuery(Procedimento.DSList.Items[J].DataSet).Connection.RollbackTrans;
+          end;
+        finally
+          Procedimento.Status.EmConsulta := False;
         end;
-      finally
-        Procedimento.Status.EmConsulta := False;
       end;
     end;
-  end;
+  end);
 end;
 
 procedure TThread.Kill;
