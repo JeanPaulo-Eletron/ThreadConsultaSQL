@@ -16,16 +16,21 @@ const
 type
     TProcedure        = Procedure of object;
     TRProcedure       = reference to procedure;
+    TStatus = class(TObject)
+    public
+      EmConsulta: Boolean;
+      EmProcesso: Boolean;
+    end;
+    TDSList = record
+      DS  : TDataSource;
+      Qry : TAdoQuery;
+      Status: TStatus;
+    end;
     TSQLList          = record
       Qry: TADOQuery;
       Button: TButton;
       DS:  TDataSource;
       Connection: TADOConnection;
-    end;
-    TStatus = class(TObject)
-    public
-      EmConsulta: Boolean;
-      EmProcesso: Boolean;
     end;
     TInformacoesAdicionais = class(TObject)
     public
@@ -40,7 +45,7 @@ type
       Status : TStatus;
       SQLList: TSQLList;
       InformacoesAdicionais : TInformacoesAdicionais;
-      DSList  : TList<TDataSource>;
+      DSList  : TList<TDSList>;
     end;
 TThread = class(System.Classes.TThread)
 private
@@ -82,6 +87,11 @@ end;
 TForm = class(Vcl.Forms.TForm)
   procedure FormDestroy(Sender: TObject);
   procedure FormCreate(Sender: TObject);
+  procedure ADOConnection1WillExecute(Connection: TADOConnection;
+    var CommandText: WideString; var CursorType: TCursorType;
+    var LockType: TADOLockType; var CommandType: TCommandType;
+    var ExecuteOptions: TExecuteOptions; var EventStatus: TEventStatus;
+    const Command: _Command; const Recordset: _Recordset);
 private
   function IsForm: Boolean;
 protected
@@ -100,6 +110,16 @@ implementation
 {$R *.DFM}
 
 uses Main;
+
+procedure TForm.ADOConnection1WillExecute(Connection: TADOConnection;
+    var CommandText: WideString; var CursorType: TCursorType;
+    var LockType: TADOLockType; var CommandType: TCommandType;
+    var ExecuteOptions: TExecuteOptions; var EventStatus: TEventStatus;
+    const Command: _Command; const Recordset: _Recordset);
+begin
+  Recordset.Properties['Preserve on commit'].Value := True;
+  Recordset.Properties['Preserve on abort'].Value := True;
+end;
 
 procedure TForm.FormCreate(Sender: TObject);
 begin
@@ -210,7 +230,7 @@ begin
     then  FilaProcAssyncPendentesDeExecucao := TList<TRecordProcedure>.Create;
   Procedimento.InformacoesAdicionais := TInformacoesAdicionais.Create;
   Procedimento.InformacoesAdicionais.NomeProcedimento := NomeProcedimento;
-  Procedimento.DSList := TList<TDataSource>.Create;
+  Procedimento.DSList :=  TList<TDSList>.Create;
   Procedimento.Status := TStatus.Create;
   FilaProcAssyncPendentesDeExecucao.Add(Procedimento);
 end;
@@ -241,29 +261,40 @@ begin
       RecordProcedure: TRecordProcedure;
       NomeProcedimento: String;
     begin
-      FLock.Acquire;
-      NomeProcedimento := Self.NomeProcedimento.ExtractAt(0);
-      for I := 0 to FilaProcAssyncEmExecucao.Count - 1 do
-      if FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento = NomeProcedimento  then break;
-      RecordProcedure := FilaProcAssyncEmExecucao.Items[I];
-      Self.EmProcesso := False;
-      FLock.Release;
-      if Integer(Msg.wParam) = 0
-        then RecordProcedure.Procedimento
-        else begin
-          Procedimento := RecordProcedure.RProcedimento;
-          Procedimento;
+      Try
+        FLock.Acquire;
+        NomeProcedimento := Self.NomeProcedimento.ExtractAt(0);
+        for I := 0 to FilaProcAssyncEmExecucao.Count - 1 do
+        if FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento = NomeProcedimento  then break;
+        RecordProcedure := FilaProcAssyncEmExecucao.Items[I];
+        Self.EmProcesso := False;
+        FLock.Release;
+        if Integer(Msg.wParam) = 0
+          then RecordProcedure.Procedimento
+          else begin
+            Procedimento := RecordProcedure.RProcedimento;
+            Procedimento;
+          end;
+        if Self.Finished
+          then exit;
+        for L := 0 to RecordProcedure.DSList.Count - 1 do begin
+          Synchronize(
+          Procedure Begin
+            if (RecordProcedure.DSList.Items[L].Status.EmConsulta) and (( stOpen in RecordProcedure.DSList.List[L].Qry.Connection.State))
+              then begin
+                if RecordProcedure.DSList.List[L].DS.DataSet = nil
+                  then RecordProcedure.DSList.List[L].DS.DataSet := RecordProcedure.DSList.List[L].Qry;
+                RecordProcedure.DSList.List[L].Qry.Connection.CommitTrans;
+                RecordProcedure.DSList.List[L].Status.EmConsulta := False;
+              end
+              else RecordProcedure.DSList.List[L].Qry.Connection.Close;
+          end);
+          VincularComponente(RecordProcedure.DSList.List[L].DS);
         end;
-      if Self.Finished
-        then exit;
-      QtdeProcAsync := QtdeProcAsync - 1;
-      for L := 0 to RecordProcedure.DSList.Count - 1 do begin
-        if RecordProcedure.Status.EmConsulta
-          then Synchronize(Procedure Begin TAdoQuery(RecordProcedure.DSList.List[L].DataSet).Connection.CommitTrans end)
-          else Synchronize(Procedure Begin TAdoQuery(RecordProcedure.DSList.List[L].DataSet).Close end);
-        VincularComponente(RecordProcedure.DSList.List[L]);
-      end;
-      FilaProcAssyncEmExecucao.Remove(RecordProcedure);
+        FilaProcAssyncEmExecucao.Remove(RecordProcedure);
+      Finally
+        QtdeProcAsync := QtdeProcAsync - 1;
+      End;
     end).Start;
   while EmProcesso do Sleep(RestInterval);
 end;
@@ -279,6 +310,8 @@ begin
     SQLList: TSQLList;
     Status: TStatus;
     RecordProcedureRetorno: TRecordProcedure;
+    DSList: TDSList;
+    WillExecuteEvent : TMethod;
   begin
     ID := ID + 1;
     DataSourceReferencia.Enabled := False;
@@ -302,14 +335,21 @@ begin
     RecordProcedureRetorno.SQLList.Qry.Connection                  := RecordProcedureRetorno.SQLList.Connection;
     RecordProcedureRetorno.SQLList.DS                              := DataSourceReferencia;
     RecordProcedureRetorno.SQLList.Connection.Connected            := True;
+    WillExecuteEvent.Data := Pointer(TForm);
+    WillExecuteEvent.Code := TForm.MethodAddress('ADOConnection1WillExecute');
+    RecordProcedureRetorno.SQLList.Connection.OnWillExecute        := TWillExecuteEvent(WillExecuteEvent);
     RecordProcedureRetorno.SQLList.Connection.BeginTrans;
     for I := 0 to FilaProcAssyncEmExecucao.Count - 1 do
     if ProcedimentoOrigem = FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento
       then begin
         RecordProcedure := FilaProcAssyncEmExecucao.Items[I];
         Status := RecordProcedure.Status;
-        Status.EmConsulta      := True;
-        RecordProcedure.DSList.Add(DataSourceReferencia);
+        Status.EmConsulta        := True;
+        DSList.DS                := DataSourceReferencia;
+        DSList.Status            := TStatus.Create;
+        DSList.Status.EmConsulta := True;
+        DSList.Qry               := TAdoQuery(DataSourceReferencia.DataSet);
+        RecordProcedure.DSList.Add(DSList);
         RecordProcedure.SQLList         := RecordProcedureRetorno.SQLList;
       end;
     FLock.Acquire;
@@ -326,18 +366,23 @@ begin
   var
   I, J: Integer;
   Procedimento : TRecordProcedure;
+  Recordset : _Recordset;
   begin
     for I := 0 to FilaProcAssyncEmExecucao.Count - 1 do
     if FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento = ProcedimentoOrigem then begin
-      if FilaProcAssyncEmExecucao.Items[I].Status.EmConsulta then begin
-        try
-          Procedimento := FilaProcAssyncEmExecucao.Items[I];
-          for J := 0 to  Procedimento.DSList.Count - 1 do begin
-            Procedimento.DSList.Items[J].Enabled := False;
-            TADOQuery(Procedimento.DSList.Items[J].DataSet).Connection.RollbackTrans;
+      if (FilaProcAssyncEmExecucao.Items[I].Status.EmProcesso) and (FilaProcAssyncEmExecucao.Items[I].Status.EmConsulta) then begin
+        Procedimento := FilaProcAssyncEmExecucao.Items[I];
+        for J := 0 to  Procedimento.DSList.Count - 1 do begin
+          try
+            if ( Procedimento.DSList.Items[J].Status.EmConsulta ) and
+               ( stOpen in Procedimento.DSList.Items[J].Qry.Connection.State)
+              then begin
+                Procedimento.DSList.Items[J].Qry.Connection.RollbackTrans;
+              end;
+          finally
+            Procedimento.DSList.Items[J].Status.EmConsulta := False;
+            Procedimento.DSList.Items[J].DS.Enabled := False;
           end;
-        finally
-          Procedimento.Status.EmConsulta := False;
         end;
       end;
     end;
@@ -348,11 +393,14 @@ procedure TThread.Kill;
 var
   I: integer;
 begin
-  for I := 0 to FilaProcAssyncEmExecucao.Count - 1 do CancelarConsulta(FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento);//Cancelando todas as consultas
-  FreeAndNil(FLock);
-  if (EmProcesso) or (QtdeProcAsync <> 0)
-    then Destroy
-    else Terminate;
+  try
+    for I := 0 to FilaProcAssyncEmExecucao.Count - 1 do CancelarConsulta(FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento);//Cancelando todas as consultas
+  finally
+    FreeAndNil(FLock);
+    if (EmProcesso) or (QtdeProcAsync <> 0)
+      then Destroy
+      else Terminate;
+  end;
 end;
 
 procedure TThread.DesvincularComponente(DS: TDataSource);
