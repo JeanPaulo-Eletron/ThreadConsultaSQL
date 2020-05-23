@@ -31,9 +31,12 @@ TFormMain = class(TForm)
     Button5: TButton;
     lbl1: TLabel;
     ComboBox1: TComboBox;
-    Button3: TSpeedButton;
     DBGrid1: TDBGrid;
     Query1DepartmentID: TSmallintField;
+    Query1Name: TWideStringField;
+    Query1GroupName: TWideStringField;
+    Query1ModifiedDate: TDateTimeField;
+    Button3: TCheckBox;
     procedure Button3Click(Sender: TObject);
     procedure Button5Click(Sender: TObject);
     procedure ComboBox1Change(Sender: TObject);
@@ -89,7 +92,6 @@ var
 begin
   RecordProcedure := Thread.NovaConexao(DataSource1,'Consulta',Button3);
   RecordProcedure.SQLList.Qry.Close;
-  RecordProcedure.SQLList.Qry.ComponenteVinculado := Button3;
   RecordProcedure.SQLList.Qry.Open;
 end;
 

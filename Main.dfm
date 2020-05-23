@@ -21,14 +21,6 @@ object FormMain: TFormMain
     Height = 13
     Caption = '1'
   end
-  object Button3: TSpeedButton
-    Left = 334
-    Top = 8
-    Width = 115
-    Height = 25
-    Caption = 'Consultar'
-    OnClick = Button3Click
-  end
   object Button5: TButton
     Left = 213
     Top = 8
@@ -64,7 +56,31 @@ object FormMain: TFormMain
         Expanded = False
         FieldName = 'DepartmentID'
         Visible = True
+      end
+      item
+        Expanded = False
+        FieldName = 'GroupName'
+        Visible = True
+      end
+      item
+        Expanded = False
+        FieldName = 'ModifiedDate'
+        Visible = True
+      end
+      item
+        Expanded = False
+        FieldName = 'Name'
+        Visible = True
       end>
+  end
+  object Button3: TCheckBox
+    Left = 350
+    Top = 12
+    Width = 97
+    Height = 17
+    Caption = 'Consultar'
+    TabOrder = 3
+    OnClick = Button3Click
   end
   object Query1: TADOQuery
     Connection = ADOConnection1
@@ -105,6 +121,17 @@ object FormMain: TFormMain
     object Query1DepartmentID: TSmallintField
       FieldName = 'DepartmentID'
       ReadOnly = True
+    end
+    object Query1Name: TWideStringField
+      FieldName = 'Name'
+      Size = 50
+    end
+    object Query1GroupName: TWideStringField
+      FieldName = 'GroupName'
+      Size = 50
+    end
+    object Query1ModifiedDate: TDateTimeField
+      FieldName = 'ModifiedDate'
     end
   end
   object ADOConnection1: TADOConnection
