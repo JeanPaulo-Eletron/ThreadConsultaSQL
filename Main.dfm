@@ -10,6 +10,7 @@ object FormMain: TFormMain
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
+  OnCreate = FormCreate
   OnShow = FormShow
   PixelsPerInch = 96
   TextHeight = 13
@@ -20,36 +21,13 @@ object FormMain: TFormMain
     Height = 13
     Caption = '1'
   end
-  object Button4: TButton
-    Left = 334
-    Top = 8
-    Width = 115
-    Height = 25
-    Caption = 'Cancelar'
-    TabOrder = 2
-    OnClick = Button4Click
-  end
-  object Button3: TButton
+  object Button3: TSpeedButton
     Left = 334
     Top = 8
     Width = 115
     Height = 25
     Caption = 'Consultar'
-    TabOrder = 0
     OnClick = Button3Click
-  end
-  object DBGrid1: TDBGrid
-    Left = 0
-    Top = 86
-    Width = 729
-    Height = 259
-    DataSource = DataSource1
-    TabOrder = 1
-    TitleFont.Charset = DEFAULT_CHARSET
-    TitleFont.Color = clWindowText
-    TitleFont.Height = -11
-    TitleFont.Name = 'Tahoma'
-    TitleFont.Style = []
   end
   object Button5: TButton
     Left = 213
@@ -57,7 +35,7 @@ object FormMain: TFormMain
     Width = 115
     Height = 25
     Caption = 'Contar'
-    TabOrder = 3
+    TabOrder = 0
     OnClick = Button5Click
   end
   object ComboBox1: TComboBox
@@ -65,9 +43,28 @@ object FormMain: TFormMain
     Top = 10
     Width = 145
     Height = 21
-    TabOrder = 4
+    TabOrder = 1
     Text = 'ComboBox1'
     OnChange = ComboBox1Change
+  end
+  object DBGrid1: TDBGrid
+    Left = 0
+    Top = 86
+    Width = 729
+    Height = 259
+    DataSource = DataSource1
+    TabOrder = 2
+    TitleFont.Charset = DEFAULT_CHARSET
+    TitleFont.Color = clWindowText
+    TitleFont.Height = -11
+    TitleFont.Name = 'Tahoma'
+    TitleFont.Style = []
+    Columns = <
+      item
+        Expanded = False
+        FieldName = 'DepartmentID'
+        Visible = True
+      end>
   end
   object Query1: TADOQuery
     Connection = ADOConnection1
@@ -85,9 +82,10 @@ object FormMain: TFormMain
       
         '                                       join HumanResources.Shift' +
         ' on 1=1 '
-      #9#9#9#9#9#9#9#9#9'   join HumanResources.JobCandidate on 1=1'
+      #9#9'       '#9#9#9#9#9#9'   join HumanResources.JobCandidate on 1=1'
       #9#9#9#9#9#9#9#9#9'   join HumanResources.EmployeePayHistory on 1=1'
       #9#9#9#9#9#9#9#9#9'   join HumanResources.Department on 1=1'
+      '  join HumanResources.Department Dsaa on 1=1'
       ''
       ''
       ''
@@ -104,6 +102,10 @@ object FormMain: TFormMain
       '*/')
     Left = 80
     Top = 8
+    object Query1DepartmentID: TSmallintField
+      FieldName = 'DepartmentID'
+      ReadOnly = True
+    end
   end
   object ADOConnection1: TADOConnection
     Connected = True
