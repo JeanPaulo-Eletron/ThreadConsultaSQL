@@ -15,7 +15,7 @@ uses
     Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
     Dialogs, Db, Vcl.Grids, Vcl.DBGrids, Data.Win.ADODB, Vcl.StdCtrls,
     System.TypInfo, Generics.Collections, Vcl.ExtCtrls,
-    Vcl.DBCtrls, SyncObjs, Vcl.Themes, ThreadControler;
+    Vcl.DBCtrls, SyncObjs, Vcl.Themes, ThreadControler, Vcl.Buttons;
 
 const
     WM_OPEN                       = WM_USER + 1;
@@ -26,19 +26,19 @@ type
 
 TFormMain = class(TForm)
     Query1: TADOQuery;
-    Button3: TButton;
     ADOConnection1: TADOConnection;
     DataSource1: TDataSource;
-    DBGrid1: TDBGrid;
-    Button4: TButton;
     Button5: TButton;
     lbl1: TLabel;
     ComboBox1: TComboBox;
+    Button3: TSpeedButton;
+    DBGrid1: TDBGrid;
+    Query1DepartmentID: TSmallintField;
     procedure Button3Click(Sender: TObject);
-    procedure Button4Click(Sender: TObject);
     procedure Button5Click(Sender: TObject);
     procedure ComboBox1Change(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
 private
 { Private declarations }
 public
@@ -55,13 +55,9 @@ implementation
 
 procedure TFormMain.Button3Click(Sender: TObject);
 begin
-  Thread.ProcedimentoGenericoAssync(Consulta,'Consulta');
-  Thread.ProcedimentoGenericoAssync(Consulta,'Consulta');
-end;
-
-procedure TFormMain.Button4Click(Sender: TObject);
-begin
-  Thread.CancelarConsulta('Consulta');
+  if Button3.Caption <> 'Cancelar'
+    then Thread.ProcedimentoGenericoAssync(Consulta,'Consulta')
+    else Thread.CancelarConsulta('Consulta');
 end;
 
 procedure TFormMain.Button5Click(Sender: TObject);
@@ -91,15 +87,16 @@ procedure TFormMain.Consulta;
 var
   RecordProcedure: TRecordProcedure;
 begin
-  try
-    RecordProcedure := Thread.NovaConexao(DataSource1,'Consulta');
-    Button3.Visible := False;
-    RecordProcedure.SQLList.Qry.Close;
-    RecordProcedure.SQLList.Qry.Open;
-  finally
-    Button3.Enabled := True;
-    Button3.Visible := True;
-  end;
+  RecordProcedure := Thread.NovaConexao(DataSource1,'Consulta',Button3);
+  RecordProcedure.SQLList.Qry.Close;
+  RecordProcedure.SQLList.Qry.ComponenteVinculado := Button3;
+  RecordProcedure.SQLList.Qry.Open;
+end;
+
+procedure TFormMain.FormCreate(Sender: TObject);
+begin
+  inherited;
+  Thread.Start;
 end;
 
 procedure TFormMain.FormShow(Sender: TObject);

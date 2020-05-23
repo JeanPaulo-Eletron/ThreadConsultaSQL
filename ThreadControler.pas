@@ -4,15 +4,16 @@ interface
 
 uses
     Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
-    Dialogs, Db, Vcl.Grids, Vcl.DBGrids, Data.Win.ADODB, Vcl.StdCtrls,
+    Dialogs, Db, Vcl.Grids, Vcl.DBGrids, Vcl.StdCtrls,
     System.TypInfo, Generics.Collections, Vcl.ExtCtrls, Vcl.DBCtrls,
-    SyncObjs, Vcl.Themes;
+    SyncObjs, Vcl.Themes, Vcl.Buttons, Data.Win.ADODB, Winapi.ADOInt;
 
 const
     WM_OPEN                       = WM_USER + 1;
     WM_PROCEDIMENTOGENERICOASSYNC = WM_USER + 2;
     WM_TIMERTHREADASSYNC          = WM_USER + 3;
     WM_TERMINATE                  = WM_USER + 4;
+procedure InfoBox(Mensagem: String);
 type
     TProcedure        = Procedure of object;
     TRProcedure       = reference to procedure;
@@ -21,6 +22,26 @@ type
       EmConsulta: Boolean;
       EmProcesso: Boolean;
     end;
+TADOQuery = class(Data.Win.ADODB.TADOQuery)
+  private
+    FButton: TSpeedButton;
+    Terminado : Boolean;
+    procedure SetButton(Button : TSpeedButton);
+    procedure ADOConnection1WillExecute(Connection: TADOConnection;
+      var CommandText: WideString; var CursorType: TCursorType;
+      var LockType: TADOLockType; var CommandType: TCommandType;
+      var ExecuteOptions: TExecuteOptions; var EventStatus: TEventStatus;
+      const Command: _Command; const Recordset: _Recordset);
+  public
+  CaptionAnterior : TCaption;
+  Cancelado: Boolean;
+  property ComponenteVinculado: TSpeedButton read FButton write SetButton;
+  procedure OpenAssync;
+  procedure Open;
+  procedure Cancelar;
+  procedure EOnFetchProgress(DataSet: TCustomADODataSet; Progress, MaxProgress: Integer; var EventStatus: TEventStatus);
+  procedure EOnFetchComplete(DataSet: TCustomADODataSet; const Error: Error; var EventStatus: TEventStatus);
+end;
     TDSList = record
       DS  : TDataSource;
       Qry : TAdoQuery;
@@ -67,7 +88,6 @@ public
     RestInterval : Integer;
     EmProcesso: boolean;
     RecordProcedure:  TRecordProcedure;
-    Connection: TADOConnection;
     Query: TADOQuery;
     DataSource: TDataSource;
     NaoPermitirFilaDeProcessos: Boolean;
@@ -81,17 +101,13 @@ public
     procedure ProcedimentoGenericoAssync(Procedimento: TProc; NomeProcedimento: String);overload;
     procedure PrepararProcedimento(Procedimento: TRecordProcedure; NomeProcedimento: String);
     function  NovaConexao(DataSourceReferencia: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;overload;
+    function  NovaConexao(DataSourceReferencia: TDataSource; ProcedimentoOrigem: String; ComponenteVinculado: TSpeedButton):TRecordProcedure;overload;
     procedure Kill;
     procedure CancelarConsulta(ProcedimentoOrigem: String);
 end;
 TForm = class(Vcl.Forms.TForm)
   procedure FormDestroy(Sender: TObject);
   procedure FormCreate(Sender: TObject);
-  procedure ADOConnection1WillExecute(Connection: TADOConnection;
-    var CommandText: WideString; var CursorType: TCursorType;
-    var LockType: TADOLockType; var CommandType: TCommandType;
-    var ExecuteOptions: TExecuteOptions; var EventStatus: TEventStatus;
-    const Command: _Command; const Recordset: _Recordset);
 private
   function IsForm: Boolean;
 protected
@@ -111,19 +127,15 @@ implementation
 
 uses Main;
 
-procedure TForm.ADOConnection1WillExecute(Connection: TADOConnection;
-    var CommandText: WideString; var CursorType: TCursorType;
-    var LockType: TADOLockType; var CommandType: TCommandType;
-    var ExecuteOptions: TExecuteOptions; var EventStatus: TEventStatus;
-    const Command: _Command; const Recordset: _Recordset);
+function TForm.GetOnCreate: TNotifyEvent;
 begin
-  Recordset.Properties['Preserve on commit'].Value := True;
-  Recordset.Properties['Preserve on abort'].Value := True;
+  FOnCreate := FormCreate;
+  Result    := FOnCreate;
 end;
 
 procedure TForm.FormCreate(Sender: TObject);
 begin
-  TForm(Sender).Thread       := TThread.Create(False);
+  Thread  := TThread.Create(True);
   TForm(Sender).Thread.Owner := Sender;
 end;
 
@@ -133,22 +145,17 @@ begin
     then Thread.Kill;
 end;
 
-function TForm.GetOnCreate: TNotifyEvent;
-begin
-  FOnCreate := FormCreate;
-  Result    := FOnCreate;
-end;
-
 function TForm.GetOnDestroy: TNotifyEvent;
 begin
   FOnDestroy := FormDestroy;
   result := FOnDestroy;
 end;
 
-function TForm.IsForm: Boolean;
+function TForm.IsForm: Boolean;//Esse controlador de thread só funciona em forms (para startar) !!!
 begin
   Result := true;
 end;
+
 // ------------------- THREAD CONSULTA -------------------- //
 
 procedure TThread.Execute;
@@ -284,10 +291,11 @@ begin
               then begin
                 if RecordProcedure.DSList.List[L].DS.DataSet = nil
                   then RecordProcedure.DSList.List[L].DS.DataSet := RecordProcedure.DSList.List[L].Qry;
-                RecordProcedure.DSList.List[L].Qry.Connection.CommitTrans;
                 RecordProcedure.DSList.List[L].Status.EmConsulta := False;
               end
-              else RecordProcedure.DSList.List[L].Qry.Connection.Close;
+              else begin
+                RecordProcedure.DSList.List[L].Qry.Connection.Close;
+              end;
           end);
           VincularComponente(RecordProcedure.DSList.List[L].DS);
         end;
@@ -297,6 +305,13 @@ begin
       End;
     end).Start;
   while EmProcesso do Sleep(RestInterval);
+end;
+
+function TThread.NovaConexao(DataSourceReferencia: TDataSource; ProcedimentoOrigem: String; ComponenteVinculado: TSpeedButton): TRecordProcedure;
+begin
+  TAdoQuery(DataSourceReferencia.DataSet).CaptionAnterior :=     ComponenteVinculado.Caption;
+  TAdoQuery(DataSourceReferencia.DataSet).ComponenteVinculado := ComponenteVinculado;
+  Result := NovaConexao(DataSourceReferencia,ProcedimentoOrigem);
 end;
 
 function TThread.NovaConexao(DataSourceReferencia: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;
@@ -311,7 +326,6 @@ begin
     Status: TStatus;
     RecordProcedureRetorno: TRecordProcedure;
     DSList: TDSList;
-    WillExecuteEvent : TMethod;
   begin
     ID := ID + 1;
     DataSourceReferencia.Enabled := False;
@@ -328,17 +342,15 @@ begin
     RecordProcedureRetorno.SQLList.Connection.LoginPrompt          := TAdoQuery(DataSourceReferencia.DataSet).Connection.LoginPrompt;
     RecordProcedureRetorno.SQLList.Connection.Mode                 := TAdoQuery(DataSourceReferencia.DataSet).Connection.Mode;
     RecordProcedureRetorno.SQLList.Connection.Name                 := 'Thread'+IntToStr(ID)+IntToStr(Self.ThreadID)+TAdoQuery(DataSourceReferencia.DataSet).Connection.Name;
-    RecordProcedureRetorno.SQLList.Connection.Provider             := TAdoQuery(DataSourceReferencia.DataSet).Connection.Provider;
+    RecordProcedureRetorno.SQLList.Connection.Provider             := 'SQLNCLI11.1';
     RecordProcedureRetorno.SQLList.Connection.Tag                  := TAdoQuery(DataSourceReferencia.DataSet).Connection.Tag;
+    RecordProcedureRetorno.SQLList.Connection.CommandTimeout       := TAdoQuery(DataSourceReferencia.DataSet).Connection.CommandTimeout;
     RecordProcedureRetorno.SQLList.Qry                             := TAdoQuery(DataSourceReferencia.DataSet);
     RecordProcedureRetorno.SQLList.Connection.Connected := True;
     RecordProcedureRetorno.SQLList.Qry.Connection                  := RecordProcedureRetorno.SQLList.Connection;
     RecordProcedureRetorno.SQLList.DS                              := DataSourceReferencia;
     RecordProcedureRetorno.SQLList.Connection.Connected            := True;
-    WillExecuteEvent.Data := Pointer(TForm);
-    WillExecuteEvent.Code := TForm.MethodAddress('ADOConnection1WillExecute');
-    RecordProcedureRetorno.SQLList.Connection.OnWillExecute        := TWillExecuteEvent(WillExecuteEvent);
-    RecordProcedureRetorno.SQLList.Connection.BeginTrans;
+
     for I := 0 to FilaProcAssyncEmExecucao.Count - 1 do
     if ProcedimentoOrigem = FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento
       then begin
@@ -346,6 +358,7 @@ begin
         Status := RecordProcedure.Status;
         Status.EmConsulta        := True;
         DSList.DS                := DataSourceReferencia;
+        DSList.DS.Enabled        := True;
         DSList.Status            := TStatus.Create;
         DSList.Status.EmConsulta := True;
         DSList.Qry               := TAdoQuery(DataSourceReferencia.DataSet);
@@ -366,7 +379,6 @@ begin
   var
   I, J: Integer;
   Procedimento : TRecordProcedure;
-  Recordset : _Recordset;
   begin
     for I := 0 to FilaProcAssyncEmExecucao.Count - 1 do
     if FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento = ProcedimentoOrigem then begin
@@ -374,14 +386,9 @@ begin
         Procedimento := FilaProcAssyncEmExecucao.Items[I];
         for J := 0 to  Procedimento.DSList.Count - 1 do begin
           try
-            if ( Procedimento.DSList.Items[J].Status.EmConsulta ) and
-               ( stOpen in Procedimento.DSList.Items[J].Qry.Connection.State)
-              then begin
-                Procedimento.DSList.Items[J].Qry.Connection.RollbackTrans;
-              end;
+            Procedimento.DSList.Items[J].Qry.Cancelar;
           finally
             Procedimento.DSList.Items[J].Status.EmConsulta := False;
-            Procedimento.DSList.Items[J].DS.Enabled := False;
           end;
         end;
       end;
@@ -397,9 +404,10 @@ begin
     for I := 0 to FilaProcAssyncEmExecucao.Count - 1 do CancelarConsulta(FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento);//Cancelando todas as consultas
   finally
     FreeAndNil(FLock);
-    if (EmProcesso) or (QtdeProcAsync <> 0)
-      then Destroy
-      else Terminate;
+    while QtdeProcAsync > 0 do sleep(RestInterval);
+    Terminate;
+    WaitFor;
+    Free;
   end;
 end;
 
@@ -464,6 +472,91 @@ procedure TThread.Synchronize(AThreadProc: TThreadProcedure);
 begin
   Synchronize(Self, AThreadProc);
 end;
+
+procedure TADOQuery.ADOConnection1WillExecute(Connection: TADOConnection;
+    var CommandText: WideString; var CursorType: TCursorType;
+    var LockType: TADOLockType; var CommandType: TCommandType;
+    var ExecuteOptions: TExecuteOptions; var EventStatus: TEventStatus;
+    const Command: _Command; const Recordset: _Recordset);
+begin
+  Recordset.Properties['Preserve on commit'].Value := True;//  Após confirmar uma transação, o conjunto de registros permanece ativo. Portanto, é possível buscar novas linhas; atualizar, excluir e inserir linhas; e assim por diante.
+  Recordset.Properties['Preserve on abort'].Value := True;//	Após abortar uma transação, o conjunto de registros permanece ativo. Portanto, é possível buscar novas linhas, atualizar, excluir e inserir linhas e assim por diante.
+end;
+
+procedure TADOQuery.SetButton(Button : TSpeedButton);
+begin
+  FButton := Button;
+  CaptionAnterior := FButton.Caption;
+end;
+
+procedure TADOQuery.Cancelar;
+begin
+  if (ComponenteVinculado <> nil) and (ComponenteVinculado.Caption = 'Cancelar')
+    then begin
+      Cancelado := True;
+    end;
+end;
+
+procedure TADOQuery.EOnFetchProgress(DataSet: TCustomADODataSet; Progress, MaxProgress: Integer; var EventStatus: TEventStatus);
+begin
+    if Cancelado and (Connection.InTransaction)
+      then Connection.RollbackTrans;
+    Cancelado := False;
+end;
+procedure TADOQuery.EOnFetchComplete(DataSet: TCustomADODataSet; const Error: Error; var EventStatus: TEventStatus);
+begin
+  TForm(Owner).Thread.Synchronize(
+  Procedure begin
+    DataSet.Resync([]);
+    if Connection.InTransaction
+      then Connection.CommitTrans;
+    ComponenteVinculado.Caption := CaptionAnterior;
+    Terminado := True;
+  end);
+end;
+procedure TAdoQuery.OpenAssync;//Starta uma consulta de forma assyncrona independente de Thread, porém não espera a consulta terminar, para cancelar tem que chamar o diretamente o método cancelar da qry.
+var WillExecuteEvent : TMethod;
+    Form : TForm;
+    I: Integer;
+    DataSource: TDataSource;
+begin
+  if Connection.InTransaction
+    then EXIT;
+  if ComponenteVinculado = nil
+    then raise Exception.Create('Button não configurado');
+  WillExecuteEvent.Data := Pointer(TADOQuery);
+  WillExecuteEvent.Code := TADOQuery.MethodAddress('ADOConnection1WillExecute');
+  Connection.OnWillExecute := TWillExecuteEvent(WillExecuteEvent);
+  OnFetchProgress := EOnFetchProgress;
+  OnFetchComplete := EOnFetchComplete;
+  ExecuteOptions := [eoAsyncExecute, eoAsyncFetchNonBlocking];
+  Connection.BeginTrans;
+  ComponenteVinculado.Caption := 'Cancelar';
+  Terminado := False;
+  Try
+    Active := True;
+  Except
+    on E:EDatabaseError do begin
+      Infobox('Houve um problema ao tentar realizar a consulta no banco de dados:' + E.Message);
+      abort;
+    end;
+  end;
+end;
+
+procedure TAdoQuery.Open;
+begin
+  if ComponenteVinculado <> nil
+    then begin//O button da qry deve ser preenchido dentro da Thread(pois para cancelar esse componente deve conter o tratamento), então esperar não causa problemas
+      if Connection.InTransaction
+        then exit;
+      OpenAssync;
+      while not Terminado do Sleep(50);
+    end
+    else Active := True;//Para opens normais, ou opens assyncronos sem a opção de cancelar(já tinha o tratamento para isso, então não faz sentido remover)...
+end;
+
+procedure InfoBox(Mensagem: String);                                                  // Caixa de dialogo indicando uma informacao
+begin  Application.BringToFront;  Application.MessageBox( PChar(Mensagem), 'Atenção',MB_OK + MB_ICONINFORMATION);end;
 
 end.
 
