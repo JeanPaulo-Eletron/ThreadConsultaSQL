@@ -16,6 +16,7 @@ const
     WM_TIMERTHREADASSYNC          = WM_USER + 3;
     WM_TERMINATE                  = WM_USER + 4;
 procedure InfoBox(Mensagem: String);
+Function  CopiarObjetoConexao(Connection:TAdoConnection): TAdoConnection;
 type
     TProcedure        = Procedure of object;
     TRProcedure       = reference to procedure;
@@ -335,25 +336,13 @@ begin
     DataSourceReferencia.Enabled := False;
     DesvincularComponente(DataSourceReferencia);
     DataSourceReferencia.Enabled := True;
-    RecordProcedureRetorno.SQLList.Connection                      := TADOConnection.Create(Form);
-    RecordProcedureRetorno.SQLList.Connection.ConnectionString     := TAdoQuery(DataSourceReferencia.DataSet).Connection.ConnectionString;
-    RecordProcedureRetorno.SQLList.Connection.ConnectionTimeout    := TAdoQuery(DataSourceReferencia.DataSet).Connection.ConnectionTimeout;
-    RecordProcedureRetorno.SQLList.Connection.ConnectOptions       := TAdoQuery(DataSourceReferencia.DataSet).Connection.ConnectOptions;
-    RecordProcedureRetorno.SQLList.Connection.CursorLocation       := TAdoQuery(DataSourceReferencia.DataSet).Connection.CursorLocation;
-    RecordProcedureRetorno.SQLList.Connection.DefaultDatabase      := TAdoQuery(DataSourceReferencia.DataSet).Connection.DefaultDatabase;
-    RecordProcedureRetorno.SQLList.Connection.IsolationLevel       := TAdoQuery(DataSourceReferencia.DataSet).Connection.IsolationLevel;
-    RecordProcedureRetorno.SQLList.Connection.KeepConnection       := TAdoQuery(DataSourceReferencia.DataSet).Connection.KeepConnection;
-    RecordProcedureRetorno.SQLList.Connection.LoginPrompt          := TAdoQuery(DataSourceReferencia.DataSet).Connection.LoginPrompt;
-    RecordProcedureRetorno.SQLList.Connection.Mode                 := TAdoQuery(DataSourceReferencia.DataSet).Connection.Mode;
-    RecordProcedureRetorno.SQLList.Connection.Name                 := 'Thread'+IntToStr(ID)+IntToStr(Self.ThreadID)+TAdoQuery(DataSourceReferencia.DataSet).Connection.Name;
-    RecordProcedureRetorno.SQLList.Connection.Provider             := 'SQLNCLI11.1';
-    RecordProcedureRetorno.SQLList.Connection.Tag                  := TAdoQuery(DataSourceReferencia.DataSet).Connection.Tag;
-    RecordProcedureRetorno.SQLList.Connection.CommandTimeout       := TAdoQuery(DataSourceReferencia.DataSet).Connection.CommandTimeout;
-    RecordProcedureRetorno.SQLList.Qry                             := TAdoQuery(DataSourceReferencia.DataSet);
+    RecordProcedureRetorno.SQLList.Connection           := CopiarObjetoConexao(TAdoQuery(DataSourceReferencia.DataSet).Connection);
+    RecordProcedureRetorno.SQLList.Connection.Name      := 'Thread'+IntToStr(ID)+IntToStr(Self.ThreadID)+TAdoQuery(DataSourceReferencia.DataSet).Connection.DataSets[0].Name;
+    RecordProcedureRetorno.SQLList.Qry                  := TAdoQuery(DataSourceReferencia.DataSet);
     RecordProcedureRetorno.SQLList.Connection.Connected := True;
-    RecordProcedureRetorno.SQLList.Qry.Connection                  := RecordProcedureRetorno.SQLList.Connection;
-    RecordProcedureRetorno.SQLList.DS                              := DataSourceReferencia;
-    RecordProcedureRetorno.SQLList.Connection.Connected            := True;
+    RecordProcedureRetorno.SQLList.Qry.Connection       := RecordProcedureRetorno.SQLList.Connection;
+    RecordProcedureRetorno.SQLList.DS                   := DataSourceReferencia;
+    RecordProcedureRetorno.SQLList.Connection.Connected := True;
 
     for I := 0 to FilaProcAssyncEmExecucao.Count - 1 do
     if ProcedimentoOrigem = FilaProcAssyncEmExecucao.Items[I].InformacoesAdicionais.NomeProcedimento
@@ -374,6 +363,26 @@ begin
   end);
   Result := RecordProcedure;
   FLock.Release;
+end;
+
+function CopiarObjetoConexao(Connection:TAdoConnection): TAdoConnection;
+var
+  ConnectionResult: TAdoConnection;
+begin
+    ConnectionResult                      := TADOConnection.Create(Form);
+    ConnectionResult.ConnectionString     := Connection.ConnectionString;
+    ConnectionResult.ConnectionTimeout    := Connection.ConnectionTimeout;
+    ConnectionResult.ConnectOptions       := Connection.ConnectOptions;
+    ConnectionResult.CursorLocation       := Connection.CursorLocation;
+    ConnectionResult.DefaultDatabase      := Connection.DefaultDatabase;
+    ConnectionResult.IsolationLevel       := Connection.IsolationLevel;
+    ConnectionResult.KeepConnection       := Connection.KeepConnection;
+    ConnectionResult.LoginPrompt          := Connection.LoginPrompt;
+    ConnectionResult.Mode                 := Connection.Mode;
+    ConnectionResult.Provider             := 'SQLNCLI11.1';
+    ConnectionResult.Tag                  := Connection.Tag;
+    ConnectionResult.CommandTimeout       := Connection.CommandTimeout;
+    Result := ConnectionResult;
 end;
 
 procedure TThread.CancelarConsulta(ProcedimentoOrigem: String);
@@ -600,7 +609,7 @@ begin
   Try
     Active := True;
   Except
-    on E:EDatabaseError do begin
+    on E:Exception do begin
       Infobox('Houve um problema ao tentar realizar a consulta no banco de dados:' + E.Message);
       abort;
     end;
@@ -622,7 +631,7 @@ begin
     else Active := True;//Para opens normais, ou opens assyncronos sem a opção de cancelar(já tinha o tratamento para isso, então não faz sentido remover)...
 end;
 
-procedure InfoBox(Mensagem: String);                                                  // Caixa de dialogo indicando uma informacao
+procedure InfoBox(Mensagem: String);
 begin
   Application.BringToFront;
   Application.MessageBox( PChar(Mensagem), 'Atenção',MB_OK + MB_ICONINFORMATION);
