@@ -25,12 +25,17 @@ type
       EmConsulta: Boolean;
       EmProcesso: Boolean;
     end;
+TComponent = class(System.Classes.TComponent)
+public
+  FComponents: TList<TComponent>;
+end;
 TADOQuery = class(Data.Win.ADODB.TADOQuery)
   private
     FSpeedButton: TSpeedButton;
     FButton:      TButton;
     FCheckBox:    TCheckBox;
-    Terminado : Boolean;
+    EmConsulta : Boolean;
+    FTPCallBack: TProc;
     procedure SetComponenteVinculado(ComponenteVinculado : TObject);overload;
     function  GetComponenteVinculado:TObject;
     procedure ADOConnection1WillExecute(Connection: TADOConnection;
@@ -43,10 +48,17 @@ TADOQuery = class(Data.Win.ADODB.TADOQuery)
   Cancelado: Boolean;
   property ComponenteVinculado: TObject read GetComponenteVinculado write SetComponenteVinculado;
   procedure OpenAssync;
-  procedure Open;
+  procedure Open;overload;
+  procedure Open(CallBack:TProc);overload;
+  procedure Open(CallBack:TProc; ComponenteVinculado: TObject);overload;
+  procedure Open(CallBack:TProcedure);overload;
+  procedure Open(CallBack:TProcedure; ComponenteVinculado: TObject);overload;
   procedure Cancelar;
   procedure EOnFetchProgress(DataSet: TCustomADODataSet; Progress, MaxProgress: Integer; var EventStatus: TEventStatus);
   procedure EOnFetchComplete(DataSet: TCustomADODataSet; const Error: Error; var EventStatus: TEventStatus);
+  procedure ECBOnFetchComplete(DataSet: TCustomADODataSet; const Error: Error; var EventStatus: TEventStatus);
+  procedure CompletarConsulta(DataSet:TCustomADODataSet);
+  procedure PrepararOpen(EOnFetchComplete:TRecordsetEvent);
 end;
     TDSList = record
       DS  : TDataSource;
@@ -552,13 +564,46 @@ begin
 end;
 
 procedure TADOQuery.EOnFetchProgress(DataSet: TCustomADODataSet; Progress, MaxProgress: Integer; var EventStatus: TEventStatus);
+var ThreadAux : TThread;
 begin
-    if Cancelado and (Connection.InTransaction)
-      then Connection.RollbackTrans;
-    Cancelado := False;
+  if Cancelado and (Connection.InTransaction)
+    then Connection.RollbackTrans;
+  Cancelado := False;
 end;
 
 procedure TADOQuery.EOnFetchComplete(DataSet: TCustomADODataSet; const Error: Error; var EventStatus: TEventStatus);
+var ThreadAux : TThread;
+begin
+  CompletarConsulta(DataSet);
+end;
+
+procedure TAdoQuery.OpenAssync;//Starta uma consulta de forma assyncrona independente de Thread, porém não espera a consulta terminar, para cancelar tem que chamar o diretamente o método cancelar da qry.
+var WillExecuteEvent : TMethod;
+    Form : TForm;
+    I: Integer;
+    DataSource: TDataSource;
+begin
+  if ComponenteVinculado = nil
+    then raise Exception.Create('Button não configurado');
+  PrepararOpen(EOnFetchComplete);
+end;
+
+procedure TAdoQuery.Open;
+begin
+  if ComponenteVinculado <> nil
+    then begin//O button da qry deve ser preenchido dentro da Thread(pois para cancelar esse componente deve conter o tratamento), então esperar não causa problemas
+      if Connection.InTransaction
+        then EXIT
+        else
+      if (ComponenteVinculado is TCheckBox) and (not (TCheckBox(ComponenteVinculado)).Checked)
+        then EXIT;
+      OpenAssync;
+      while EmConsulta do Sleep(50);
+    end
+    else Active := True;//Para opens normais, ou opens assyncronos sem a opção de cancelar(já tinha o tratamento para isso, então não faz sentido remover)...
+end;
+
+procedure TADOQuery.CompletarConsulta(DataSet:TCustomADODataSet);
 begin
   TForm(Owner).Thread.Synchronize(
   Procedure begin
@@ -573,39 +618,52 @@ begin
       else
     if (ComponenteVinculado is TCheckBox)
       then TCheckBox(ComponenteVinculado)   .Caption := CaptionAnterior;
-    Terminado := True;
+    EmConsulta := False;
     Cancelado := False;
   end);
 end;
-procedure TAdoQuery.OpenAssync;//Starta uma consulta de forma assyncrona independente de Thread, porém não espera a consulta terminar, para cancelar tem que chamar o diretamente o método cancelar da qry.
+
+procedure TADOQuery.PrepararOpen(EOnFetchComplete:TRecordsetEvent);
 var WillExecuteEvent : TMethod;
-    Form : TForm;
-    I: Integer;
-    DataSource: TDataSource;
+    ThreadAux : TThread;
 begin
   if Connection.InTransaction
     then EXIT
     else
   if (ComponenteVinculado is TCheckBox) and (not (TCheckBox(ComponenteVinculado)).Checked)
     then EXIT;
-  if ComponenteVinculado = nil
-    then raise Exception.Create('Button não configurado');
-  WillExecuteEvent.Data := Pointer(TADOQuery);
-  WillExecuteEvent.Code := TADOQuery.MethodAddress('ADOConnection1WillExecute');
-  Connection.OnWillExecute := TWillExecuteEvent(WillExecuteEvent);
-  OnFetchProgress := EOnFetchProgress;
-  OnFetchComplete := EOnFetchComplete;
-  ExecuteOptions := [eoAsyncExecute, eoAsyncFetchNonBlocking];
+  Close;
+  ThreadAux :=
+  ThreadControler.TThread(
+  TThread.CreateAnonymousThread(
+    Procedure begin
+      ThreadAux.Synchronize(
+        procedure begin
+          Connection := CopiarObjetoConexao(Connection);
+          WillExecuteEvent.Data := Pointer(TADOQuery);
+          WillExecuteEvent.Code := TADOQuery.MethodAddress('ADOConnection1WillExecute');
+          Connection.OnWillExecute := TWillExecuteEvent(WillExecuteEvent);
+          OnFetchProgress := EOnFetchProgress;
+          OnFetchComplete := EOnFetchComplete;
+          ExecuteOptions := [eoAsyncExecute, eoAsyncFetchNonBlocking];
+          Connection.Connected := True;
+        end);
+      ThreadAux.Terminate;
+    end));
+  ThreadAux.Start;
+  while not ThreadAux.Terminated do Application.ProcessMessages;
   Connection.BeginTrans;
-  if (ComponenteVinculado is TSpeedButton)
-    then TSpeedButton(ComponenteVinculado).Caption := 'Cancelar'
-    else
-  if (ComponenteVinculado is TButton)
-    then TButton(ComponenteVinculado)     .Caption := 'Cancelar'
-    else
-  if (ComponenteVinculado is TCheckBox)
-    then TCheckBox(ComponenteVinculado)   .Caption := 'Cancelar';
-  Terminado := False;
+  if ComponenteVinculado <> nil then begin
+    if (ComponenteVinculado is TSpeedButton)
+      then TSpeedButton(ComponenteVinculado).Caption := 'Cancelar'
+      else
+    if (ComponenteVinculado is TButton)
+      then TButton(ComponenteVinculado)     .Caption := 'Cancelar'
+      else
+    if (ComponenteVinculado is TCheckBox)
+      then TCheckBox(ComponenteVinculado)   .Caption := 'Cancelar';
+  end;
+  EmConsulta := True;
   Try
     Active := True;
   Except
@@ -616,25 +674,62 @@ begin
   end;
 end;
 
-procedure TAdoQuery.Open;
+procedure TADOQuery.ECBOnFetchComplete(DataSet: TCustomADODataSet;
+  const Error: Error; var EventStatus: TEventStatus);
 begin
-  if ComponenteVinculado <> nil
-    then begin//O button da qry deve ser preenchido dentro da Thread(pois para cancelar esse componente deve conter o tratamento), então esperar não causa problemas
-      if Connection.InTransaction
-        then EXIT
-        else
-      if (ComponenteVinculado is TCheckBox) and (not (TCheckBox(ComponenteVinculado)).Checked)
-        then EXIT;
-      OpenAssync;
-      while not Terminado do Sleep(50);
+  CompletarConsulta(DataSet);
+  FTPCallBack;
+end;
+
+procedure TADOQuery.Open(CallBack: TProc);
+var ThreadAux  : TThread;
+    I          : Integer;
+    DataSource : TDataSource;
+begin
+  for I := 0 to TForm(Owner).ComponentCount - 1 do  // Localizando DataSource
+  if TForm(Owner).Components[I] IS TDataSource
+    then if TDataSource(TForm(Owner).Components[I]).DataSet.Name = Self.Name
+      then  DataSource := TDataSource(TForm(Owner).Components[I]);
+  if DataSource = Nil
+    then raise Exception.Create('DataSource não configurado');
+
+  if EmConsulta
+    then begin
+      Cancelar;
+      DataSource.Enabled := False;
     end
-    else Active := True;//Para opens normais, ou opens assyncronos sem a opção de cancelar(já tinha o tratamento para isso, então não faz sentido remover)...
+    else begin
+      FTPCallBack := CallBack;
+      PrepararOpen(ECBOnFetchComplete);
+      DataSource.Enabled := True;
+    end
 end;
 
 procedure InfoBox(Mensagem: String);
 begin
   Application.BringToFront;
   Application.MessageBox( PChar(Mensagem), 'Atenção',MB_OK + MB_ICONINFORMATION);
+end;
+
+procedure TADOQuery.Open(CallBack: TProcedure);
+var Proc: TProc;
+begin
+  Proc := Procedure Begin CallBack end;
+  Open(Proc);
+end;
+
+procedure TADOQuery.Open(CallBack: TProc; ComponenteVinculado: TObject);
+begin
+  if Self.ComponenteVinculado <> ComponenteVinculado
+    then Self.ComponenteVinculado := ComponenteVinculado;
+  Open(CallBack);
+end;
+
+procedure TADOQuery.Open(CallBack: TProcedure; ComponenteVinculado: TObject);
+begin
+  if Self.ComponenteVinculado <> ComponenteVinculado
+    then Self.ComponenteVinculado := ComponenteVinculado;
+  Open(CallBack);
 end;
 
 end.
