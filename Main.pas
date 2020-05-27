@@ -57,7 +57,7 @@ implementation
 
 procedure TFormMain.Button3Click(Sender: TObject);
 begin
-  Query1.Open(Procedure begin FormMain.Caption := 'Hayyyyy!!!'; end, Button3);
+  Query1.Open;
 end;
 
 procedure TFormMain.Button5Click(Sender: TObject);
