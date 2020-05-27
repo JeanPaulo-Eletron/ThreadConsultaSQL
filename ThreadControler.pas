@@ -601,7 +601,13 @@ begin
       OpenAssync;
       while FEmConsulta do Sleep(50);
     end
-    else Active := True;//Para opens normais, ou opens assyncronos sem a opção de cancelar(já tinha o tratamento para isso, então não faz sentido remover)...
+    else begin
+      if not FEmConsulta
+        then PrepararOpen(EOnFetchComplete);
+      TForm(Owner).Enabled := False;
+      while FEmConsulta do Application.ProcessMessages;//Aqui está a "mágica"
+      TForm(Owner).Enabled := True;
+    end;
 end;
 
 procedure TADOQuery.CompletarConsulta(DataSet:TCustomADODataSet);
