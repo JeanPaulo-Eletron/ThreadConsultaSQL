@@ -46,7 +46,6 @@ private
 { Private declarations }
 public
 { Public declarations }
-    procedure Consulta;
 end;
 var
   FormMain: TFormMain;
@@ -58,9 +57,7 @@ implementation
 
 procedure TFormMain.Button3Click(Sender: TObject);
 begin
-  if Button3.Caption <> 'Cancelar'
-    then Thread.ProcedimentoGenericoAssync(Consulta,'Consulta')
-    else Thread.CancelarConsulta('Consulta');
+  Query1.Open(Procedure begin FormMain.Caption := 'Hayyyyy!!!'; end, Button3);
 end;
 
 procedure TFormMain.Button5Click(Sender: TObject);
@@ -84,15 +81,6 @@ end;
 procedure TFormMain.ComboBox1Change(Sender: TObject);
 begin
   TStyleManager.TrySetStyle(ComboBox1.Items[ComboBox1.ItemIndex]);
-end;
-
-procedure TFormMain.Consulta;
-var
-  RecordProcedure: TRecordProcedure;
-begin
-  RecordProcedure := Thread.NovaConexao(DataSource1,'Consulta',Button3);
-  RecordProcedure.SQLList.Qry.Close;
-  RecordProcedure.SQLList.Qry.Open;
 end;
 
 procedure TFormMain.FormCreate(Sender: TObject);
