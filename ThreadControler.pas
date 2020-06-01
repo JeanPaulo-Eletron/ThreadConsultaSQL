@@ -1,5 +1,4 @@
 //  Inherited;
-//  Thread.Start;
 unit ThreadControler;
 
 interface
@@ -27,10 +26,6 @@ type
       FEmConsulta: Boolean;
       EmProcesso: Boolean;
     end;
-TComponent = class(System.Classes.TComponent)
-public
-  FComponents: TList<TComponent>;
-end;
 TAdoQuery1 = class(Data.Win.ADODB.TADOQuery)
   private
     FSpeedButton: TSpeedButton;
@@ -62,7 +57,6 @@ TAdoQuery1 = class(Data.Win.ADODB.TADOQuery)
   procedure ECBOnFetchComplete(DataSet: TCustomADODataSet; const Error: Error; var EventStatus: TEventStatus);
   procedure CompletarConsulta(DataSet:TCustomADODataSet);
   procedure PrepararOpen(EOnFetchComplete:TRecordsetEvent);
-  function  LocalizarDataSource: TDataSource;
 end;
     TDSList = record
       DS  : TDataSource;
@@ -134,6 +128,8 @@ public
   procedure Open(NomeProcedimento: String; Thread: TThread; CallBack:TProcedure); overload;
   procedure Open(NomeProcedimento: String; Thread: TThread; ComponenteVinculado: TObject; CallBack:TProcedure); overload;
 end;
+function  LocalizarDataSource(Qry: TAdoQuery): TDataSource;
+type
 TForm = class(Vcl.Forms.TForm)
   procedure FormDestroy(Sender: TObject);
   procedure FormCreate(Sender: TObject);
@@ -162,7 +158,7 @@ begin
   Result    := FOnCreate;
 end;
 
-procedure TForm.FormCreate(Sender: TObject);
+procedure TForm.FormCreate(Sender: TObject);//No DFM daqui o evento não está vinculado por tanto ele não irá criar ao menos que vincule o evento no form filho e coloque o "Inherited;"
 begin
   Thread  := TThread.Create(True);
   TForm(Sender).Thread.Owner := Sender;
@@ -180,7 +176,7 @@ begin
   result := FOnDestroy;
 end;
 
-function TForm.IsForm: Boolean;//Esse controlador de thread só funciona em forms (para startar) !!!
+function TForm.IsForm: Boolean;//Esse controlador de thread só funciona em forms (para startar ele automáticamente, mas voce pode herdar a classe na unit que desejar e criar e startar a thread por lá) !!!
 begin
   Result := true;
 end;
@@ -510,18 +506,6 @@ begin
     else Result := nil;
 end;
 
-function TAdoQuery1.LocalizarDataSource: TDataSource;
-var I : Integer;
-begin
-  for I := 0 to TForm(Owner).ComponentCount - 1 do  // Localizando DataSource
-  if TForm(Owner).Components[I] IS TDataSource
-    then if TDataSource(TForm(Owner).Components[I]).DataSet.Name = Self.Name
-      then begin
-        Result := TDataSource(TForm(Owner).Components[I]);
-        exit;
-      end;
-end;
-
 procedure TAdoQuery1.Cancelar;
 begin
   if (ComponenteVinculado <> nil) then begin
@@ -533,7 +517,6 @@ begin
 end;
 
 procedure TAdoQuery1.EOnFetchProgress(DataSet: TCustomADODataSet; Progress, MaxProgress: Integer; var EventStatus: TEventStatus);
-var ThreadAux : TThread;
 begin
   if (Cancelado) then begin
     Syncronized(
@@ -547,16 +530,11 @@ begin
 end;
 
 procedure TAdoQuery1.EOnFetchComplete(DataSet: TCustomADODataSet; const Error: Error; var EventStatus: TEventStatus);
-var ThreadAux : TThread;
 begin
   CompletarConsulta(DataSet);
 end;
 
 procedure TAdoQuery1.OpenAssync;//Starta uma consulta de forma assyncrona independente de Thread, porém não espera a consulta terminar, para cancelar tem que chamar o diretamente o método cancelar da qry.
-var WillExecuteEvent : TMethod;
-    Form : TForm;
-    I: Integer;
-    DataSource: TDataSource;
 begin
   if ComponenteVinculado = nil
     then raise Exception.Create('Button não configurado');
@@ -575,20 +553,32 @@ begin
       while FEmConsulta do Sleep(50);//Consultas com cancelar devem ser feitas em Thread, e para cancelar usar a procedure "CancelarConsulta".
     end
     else begin
-      if not FEmConsulta
-        then PrepararOpen(EOnFetchComplete);
-      TForm(Owner).Enabled := False;
-      while FEmConsulta do Application.ProcessMessages;//Aqui está a "mágica", se não estiver em Thread ele continua a funcionar.
-      TForm(Owner).Enabled := True;
+      if Pos('Listagem',Name) > 0 then begin
+        if not FEmConsulta
+          then PrepararOpen(EOnFetchComplete);
+        if Owner is TForm
+          then TForm(Owner).Enabled := False;
+        while FEmConsulta do Application.ProcessMessages;//Aqui está a "mágica", se não estiver em Thread ele continua a funcionar, porém, para querys que não são de listagem será necessário readequar o sistema para que ao pegar um valor ele espere a query terminar a consulta.
+        if Owner is TForm
+          then TForm(Owner).Enabled := True;
+      end
+      else begin
+        ExecuteOptions := [];
+        Active := True;//Ele dará um active normal, caso queira assyncrono use a com callback e readeque o código para ele só acessar a field quando a consulta estiver concluída.
+      end;
     end;
 end;
 
 procedure TAdoQuery1.CompletarConsulta(DataSet:TCustomADODataSet);
+var DataSource : TDataSource;
 begin
-  TForm(Owner).Thread.Synchronize(
-  Procedure begin
+  Syncronized(
+  procedure
+  begin
     DataSet.Resync([]);
-    LocalizarDataSource.Enabled := True;
+    DataSource := LocalizarDataSource(TAdoQuery(Self));
+    if DataSource <> Nil
+      then DataSource.Enabled := True;
     if (ComponenteVinculado is TSpeedButton)
       then TSpeedButton(ComponenteVinculado).Caption := CaptionAnterior
       else
@@ -599,12 +589,12 @@ begin
       then TCheckBox(ComponenteVinculado)   .Caption := CaptionAnterior;
     FEmConsulta := False;
     Cancelado := False;
+    ExecuteOptions := [];
   end);
 end;
 
 procedure TAdoQuery1.PrepararOpen(EOnFetchComplete:TRecordsetEvent);
-var WillExecuteEvent : TMethod;
-    ThreadAux : TThread;
+var DataSource: TDataSource;
 begin
   if (ComponenteVinculado is TCheckBox) and (not (TCheckBox(ComponenteVinculado)).Checked)
     then EXIT;
@@ -613,8 +603,7 @@ begin
   procedure
   begin
     Connection := CopiarObjetoConexao(Connection);
-    WillExecuteEvent := LocalizarProcedurePeloNome('ADOConnection1WillExecute',TAdoQuery1);
-    Connection.OnWillExecute := TWillExecuteEvent(WillExecuteEvent);
+    Connection.OnWillExecute := TWillExecuteEvent(LocalizarProcedurePeloNome('ADOConnection1WillExecute',TAdoQuery1));
     OnFetchProgress := EOnFetchProgress;
     OnFetchComplete := EOnFetchComplete;
     ExecuteOptions := [eoAsyncExecute, eoAsyncFetchNonBlocking];
@@ -631,9 +620,6 @@ begin
     if (ComponenteVinculado is TCheckBox)
       then TCheckBox(ComponenteVinculado)   .Caption := 'Cancelar';
   end;
-  Syncronized(
-  procedure
-  begin
     FEmConsulta := True;
     Cancelado := False;
     Try
@@ -644,8 +630,9 @@ begin
         abort;
       end;
     end;
-    LocalizarDataSource.Enabled := False;
-  end);
+    DataSource := LocalizarDataSource(TAdoQuery(Self));
+    if DataSource <> nil
+      then DataSource.Enabled := False;
 end;
 
 procedure TAdoQuery1.ECBOnFetchComplete(DataSet: TCustomADODataSet;
@@ -694,28 +681,28 @@ end;
 
 procedure TAdoQuery.Open(NomeProcedimento: String; Thread: TThread);
 begin
-  Thread.NovaConexao(LocalizarDataSource,NomeProcedimento);
+  Thread.NovaConexao(LocalizarDataSource(Self),NomeProcedimento);
   Open;
 end;
 
 procedure TAdoQuery.Open(NomeProcedimento: String; Thread: TThread;
   ComponenteVinculado: TObject);
 begin
-  Thread.NovaConexao(LocalizarDataSource,NomeProcedimento, ComponenteVinculado);
+  Thread.NovaConexao(LocalizarDataSource(Self),NomeProcedimento, ComponenteVinculado);
   Open;
 end;
 
 procedure TAdoQuery.Open(NomeProcedimento: String; Thread: TThread;
   CallBack: TProc);
 begin
-  Thread.NovaConexao(LocalizarDataSource,NomeProcedimento);
+  Thread.NovaConexao(LocalizarDataSource(Self),NomeProcedimento);
   open(CallBack);
 end;
 
 procedure TAdoQuery.Open(NomeProcedimento: String; Thread: TThread;
   ComponenteVinculado: TObject; CallBack: TProc);
 begin
-  Thread.NovaConexao(LocalizarDataSource,NomeProcedimento, ComponenteVinculado);
+  Thread.NovaConexao(LocalizarDataSource(Self),NomeProcedimento, ComponenteVinculado);
   open(CallBack);
 end;
 
@@ -758,6 +745,20 @@ begin
     end));
   ThreadAux.Start;
   while not ThreadAux.Terminated do Application.ProcessMessages;
+end;
+
+function LocalizarDataSource(Qry: TAdoQuery): TDataSource;
+var I : Integer;
+begin
+  Result := Nil;
+  if Qry.Owner IS TForm then
+  for I := 0 to TForm(Qry.Owner).ComponentCount - 1 do  // Localizando DataSource
+  if TForm(Qry.Owner).Components[I] IS TDataSource
+    then if TDataSource(TForm(Qry.Owner).Components[I]).DataSet.Name = Qry.Name
+      then begin
+        Result := TDataSource(TForm(Qry.Owner).Components[I]);
+        exit;
+      end;
 end;
 
 end.
