@@ -57,7 +57,11 @@ implementation
 
 procedure TFormMain.Button3Click(Sender: TObject);
 begin
-  Query1.Open;
+  Query1.Cancelar;
+  Thread.ProcedimentoGenericoAssync(
+  procedure begin
+    Query1.Open('Button3Click',Thread, Button3, Procedure begin FormMain.Caption := 'asoajsasoj' end);
+  end,'Button3Click');
 end;
 
 procedure TFormMain.Button5Click(Sender: TObject);
