@@ -1,18 +1,4 @@
-﻿//Feito por: Jean Paulo Athanazio De Mei
-{     Anotações:
-      Bloqueada ---> verificar se threads estão bloqueada, para atender sobe demanda. ---> Monitor(Para aumentar a qtde sobe demanda """(Cores.dwNumberOfProcessors - 1) + IdlenessIndex(Uma expressão matemática logaritma baseada na memoria ram e no numero de cores[Uso intensivo de CPU, Uso intensivo de HD --> Por meta dados])""")
-      Threshold ---> Limiar   NODE X APACHE(LENTIDÃO).
-      Inferno da DLL e CALLBACKS e usar promices fica mais simples.
-}
-// Timer foi criado para possibilitar ser thread save(Porém depois fazendo alguns testes com componente,
-// percebi que com algumas adptações manuais(como dar enabled false quando iniciar e true quando terminar,
-// e criar um váriavel global para saber se está executando quando mecher no enabled dele
-// porem se quiser inativar depois da execução terá que tratar manualmente]) dá pra usar ele,
-// use qual preferir, mas o timer da thread é próprio para isso).
-
-// é intessante ver as opções do próprios componentes ADO para conexões assyncronas;
-// Fazer Call Back
-unit Main;
+﻿unit Main;
 
 interface
 
