@@ -11,6 +11,7 @@
 // use qual preferir, mas o timer da thread é próprio para isso).
 
 // é intessante ver as opções do próprios componentes ADO para conexões assyncronas;
+// Fazer Call Back
 unit Main;
 
 interface
@@ -19,7 +20,7 @@ uses
     Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
     Dialogs, Db, Vcl.Grids, Vcl.DBGrids, Data.Win.ADODB, Vcl.StdCtrls,
     System.TypInfo, Generics.Collections, Vcl.ExtCtrls,
-    Vcl.DBCtrls, SyncObjs, Vcl.Themes;
+    Vcl.DBCtrls, SyncObjs, Vcl.Themes, ADOQueryControler, Vcl.Buttons;
 
 const
     WM_OPEN                       = WM_USER + 1;
@@ -27,650 +28,67 @@ const
     WM_TIMERTHREADASSYNC          = WM_USER + 3;
     WM_TERMINATE                  = WM_USER + 4;
 type
-    TProcedure        = Procedure of object;
-    TRProcedure       = reference to procedure;
-    TSQLList          = record
-      Qry: TADOQuery;
-      Button: TButton;
-      DS:  TDataSource;
-      Connection: TADOConnection;
-    end;
-    TRecordProcedure = record
-      Procedimento : TProcedure;
-      RProcedimento : TProc;
-      Tipo : Integer;
-      ID   : Integer;
-      NomeProcedimento : String;
-      DSList  : TList<TDataSource>;
-      SQLList: TSQLList;
-      EmConsulta: Boolean;
-      RestInterval: Integer;
-      EmProcesso: Boolean;
-      Tag: NativeInt;
-      Enabled: Boolean;
-    end;
-type
-    TThreadMain = class(TThread)
-private
-    QtdeProcAsync: Integer;
-    MyListProcAssync: TList<TRecordProcedure>;
-    MyListProcWillProcAssync: TList<TRecordProcedure>;
-    MyListProcTimerAssync: TList<TRecordProcedure>;
-    MyListProcWillTimer: TList<TRecordProcedure>;
-    ID : Integer;
-    QtdeTimers: Integer;
-    procedure Dispatcher;
-    procedure WMProcGenericoAssync(Msg: TMsg);
-    procedure WMTIMERAssync(Msg: TMsg);
-    procedure DesvincularComponente(DS: TDataSource);
-    procedure VincularComponente(DS: TDataSource);
-protected
-    procedure Execute; override;
-public
-    RestInterval : Integer;
-    EmProcesso: boolean;
-    RecordProcedure:  TRecordProcedure;
-    Connection: TADOConnection;
-    Query: TADOQuery;
-    DataSource: TDataSource;
-    NaoPermitirFilaDeProcessos: Boolean;
-    MyList:     TList<TSQLList>;
-    procedure TimerAssync(RestInterval: NativeUInt; Procedimento: TProc);overload;
-    procedure TimerAssync(RestInterval: NativeUInt; Procedimento: TProcedure);overload;
-    procedure TimerAssync(RestInterval: NativeUInt; Procedimento: TProc; NomeProcedimento: string);overload;
-    procedure TimerAssync(RestInterval: NativeUInt; Procedimento: TProcedure; NomeProcedimento: string);overload;
-    procedure ProcedimentoGenericoAssync(Procedimento: TProcedure);overload;
-    procedure ProcedimentoGenericoAssync(Procedimento: TProc);overload;
-    procedure ProcedimentoGenericoAssync(Procedimento: TProcedure; NomeProcedimento: String);overload;
-    procedure ProcedimentoGenericoAssync(Procedimento: TProc; NomeProcedimento: String);overload;
-    function  NovaConexao(DataSourceReferencia: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;overload;
-    procedure Kill;
-    procedure CancelarConsulta(ProcedimentoOrigem: String);
-    procedure SetRestInterval(RestInterval:Integer; ProcedimentoOrigem: String);
-    function  GetRestInterval(ProcedimentoOrigem: String):Integer;
-    procedure StopTimer(ProcedimentoOrigem: String);
-    procedure AbortTimer(ProcedimentoOrigem: String);
-    procedure StartTimer(ProcedimentoOrigem: String);
-end;
 
 TFormMain = class(TForm)
     Query1: TADOQuery;
-    Button3: TButton;
     ADOConnection1: TADOConnection;
     DataSource1: TDataSource;
-    DBGrid1: TDBGrid;
-    Button4: TButton;
     Button5: TButton;
     lbl1: TLabel;
-    Button7: TButton;
-    Button1: TButton;
-    Button2: TButton;
     ComboBox1: TComboBox;
-    procedure FormCreate(Sender: TObject);
-    procedure FormDestroy(Sender: TObject);
+    DBGrid1: TDBGrid;
+    Query1DepartmentID: TSmallintField;
+    Query1Name: TWideStringField;
+    Query1GroupName: TWideStringField;
+    Query1ModifiedDate: TDateTimeField;
+    Button3: TCheckBox;
     procedure Button3Click(Sender: TObject);
-    procedure Button4Click(Sender: TObject);
     procedure Button5Click(Sender: TObject);
-    procedure Button7Click(Sender: TObject);
-    procedure Button1Click(Sender: TObject);
-    procedure Button2Click(Sender: TObject);
     procedure ComboBox1Change(Sender: TObject);
     procedure FormShow(Sender: TObject);
 private
 { Private declarations }
-    Thread1 : TThreadMain;
 public
 { Public declarations }
-    FLock : TCriticalSection;
-    procedure Consulta;
-    procedure Synchronize(AThreadProc: TProc);overload;
-    procedure Synchronize(AThreadProc: TProc; Thread: TThread);overload;
 end;
 var
   FormMain: TFormMain;
-  Timerid: UINT;
 implementation
 
 {$R *.DFM}
 
-// ------------------- FUNÇOES GLOBAIS -------------------- //
-procedure MyTimeout( hwnd: HWND; uMsg: UINT;idEvent: UINT ; dwTime : DWORD);
-stdcall;
-var
-   I: integer;
-   Proc : TProc;
-   RecordProcedure: TRecordProcedure;
-begin
-  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List)-1 do if FormMain.Thread1.MyListProcWillTimer.List[I].ID = Integer(idEvent) then begin
-    Proc :=
-    procedure
-    var
-     Proc : TProc;
-    begin
-      RecordProcedure := FormMain.Thread1.MyListProcWillTimer.Items[I];
-      if RecordProcedure.EmProcesso
-        then exit;
-      RecordProcedure.EmProcesso := True;
-      Proc := RecordProcedure.RProcedimento;
-      Proc;
-      RecordProcedure.ID := Integer(Timerid);
-      if not FormMain.Thread1.MyListProcWillTimer.List[I].Enabled
-        then KillTimer(0,FormMain.Thread1.MyListProcWillTimer.List[I].ID)
-        else TimerId   := SetTimer(1, IDEvent, RecordProcedure.RestInterval, @MyTimeout);
-    end;
-    Proc;
-  end;
-end;
-
-// ------------------- THREAD CONSULTA -------------------- //
-
-procedure TThreadMain.Execute;
-begin
-  RestInterval := 1;
-  FreeOnTerminate := self.Finished;
-  if MyListProcWillProcAssync = nil
-    then MyListProcWillProcAssync := TList<TRecordProcedure>.Create;
-  if MyListProcWillTimer = nil
-    then MyListProcWillTimer := TList<TRecordProcedure>.Create;
-  FormMain.FLock := TCriticalSection.Create;
-  while not Terminated do begin
-    Dispatcher;
-  end;
-end;
-
-procedure TThreadMain.Dispatcher;
-var
-  Msg : TMsg;
-  Cores : TSystemInfo;
-begin
-  GetSystemInfo(Cores);
-  if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then begin
-    Sleep(RestInterval);
-    if Integer(Cores.dwNumberOfProcessors) > 1
-      then while QtdeProcAsync >= (Integer(Cores.dwNumberOfProcessors) - 1) do sleep(RestInterval);//Otimização para hardware não sobrecarregar de processos pessados.
-    EmProcesso := true;
-    ID := ID + 1;
-    try
-      try
-        case Msg.Message of
-          WM_PROCEDIMENTOGENERICOASSYNC: WMProcGenericoAssync(Msg);
-          WM_TIMERTHREADASSYNC:          WMTIMERAssync(Msg);
-          WM_TIMER:                      MyTimeout(Msg.hwnd,Msg.message,Msg.wParam,Msg.lParam);
-          WM_DESTROY:                    Destroy;
-          WM_TERMINATE:                  Terminate;
-        end;
-      finally
-        EmProcesso := false;
-        PeekMessage(Msg, 0, 0, 0, PM_REMOVE);
-      end;
-    except
-      Self.Execute;
-    end;
-  end
-end;
-
-procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProcedure);
-begin
-  ProcedimentoGenericoAssync(Procedimento,'');
-end;
-
-procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProc);
-begin
-  ProcedimentoGenericoAssync(Procedimento,'');
-end;
-
-procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProcedure; NomeProcedimento: String);
-begin
-  if NaoPermitirFilaDeProcessos and EmProcesso
-    then exit;
-  if MyListProcAssync = nil
-    then  MyListProcAssync := TList<TRecordProcedure>.Create;
-  Self.RecordProcedure.Procedimento := Procedimento;
-  RecordProcedure.NomeProcedimento := NomeProcedimento;
-  RecordProcedure.DSList := TList<TDataSource>.Create;
-  MyListProcAssync.Add(Self.RecordProcedure);
-  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 0, 0);
-end;
-
-procedure TThreadMain.ProcedimentoGenericoAssync(Procedimento: TProc; NomeProcedimento: String);
-begin
-  if NaoPermitirFilaDeProcessos and EmProcesso
-    then exit;
-  if MyListProcAssync = nil
-    then  MyListProcAssync := TList<TRecordProcedure>.Create;
-  Self.RecordProcedure.RProcedimento := Procedimento;
-  RecordProcedure.NomeProcedimento := NomeProcedimento;
-  RecordProcedure.DSList := TList<TDataSource>.Create;
-  MyListProcAssync.Add(Self.RecordProcedure);
-  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 1, 1);
-end;
-
-procedure TThreadMain.TimerAssync(RestInterval: NativeUInt; Procedimento: TProcedure; NomeProcedimento: string);
-begin
-  if NaoPermitirFilaDeProcessos and EmProcesso
-    then exit;
-  if MyListProcTimerAssync = nil
-    then  MyListProcTimerAssync := TList<TRecordProcedure>.Create;
-  RecordProcedure.Procedimento     := Procedimento;
-  RecordProcedure.NomeProcedimento := NomeProcedimento;
-  MyListProcTimerAssync.Add(Self.RecordProcedure);
-  PostThreadMessage(ThreadID, WM_TIMERTHREADASSYNC, RestInterval, 0);
-end;
-
-procedure TThreadMain.TimerAssync(RestInterval: NativeUInt; Procedimento: TProc; NomeProcedimento: string);
-begin
-  if NaoPermitirFilaDeProcessos and EmProcesso
-    then exit;
-  if MyListProcTimerAssync = nil
-    then  MyListProcTimerAssync := TList<TRecordProcedure>.Create;
-  Self.RecordProcedure.RProcedimento := Procedimento;
-  RecordProcedure.NomeProcedimento := NomeProcedimento;
-  MyListProcTimerAssync.Add(Self.RecordProcedure);
-  PostThreadMessage(ThreadID, WM_TIMERTHREADASSYNC, RestInterval, 1);
-end;
-procedure TThreadMain.TimerAssync(RestInterval: NativeUInt; Procedimento: TProcedure);
-begin
-  TimerAssync(RestInterval,Procedimento,'');
-end;
-
-procedure TThreadMain.TimerAssync(RestInterval: NativeUInt; Procedimento: TProc);
-begin
-  TimerAssync(RestInterval,Procedimento,'');
-  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 1, 0);
-end;
-
-procedure TThreadMain.WMTIMERAssync(Msg: TMsg);
-var
-  Aux: TRecordProcedure;
-  Procedimento:  TProcedure;
-  RProcedimento: TProc;
-  RestInterval: NativeUInt;
-begin
-  QtdeTimers := QtdeTimers + 1;
-  RestInterval := Msg.wParam;
-  Aux  := MyListProcTimerAssync.ExtractAt(0);
-
-  if Msg.lParam = 0
-    then Procedimento  := Aux.Procedimento
-    else RProcedimento := Aux.RProcedimento;
-
-  Aux.DSList := TList<TDataSource>.Create;
-  if Msg.lParam = 0
-    then begin
-      Aux.RProcedimento  := procedure
-                            begin
-                              if Terminated
-                                then Abort;
-                              CreateAnonymousThread(procedure
-                                                    var
-                                                      I: Integer;
-                                                    begin
-                                                      QtdeProcAsync := QtdeProcAsync + 1;
-                                                      Procedimento;
-                                                      QtdeProcAsync := QtdeProcAsync - 1;
-                                                      for I := 0 to Aux.DSList.Count - 1 do begin
-                                                        if Aux.EmConsulta
-                                                          then TAdoQuery(Aux.DSList.List[I].DataSet).Connection.CommitTrans
-                                                          else TAdoQuery(Aux.DSList.List[I].DataSet).Close;
-                                                        VincularComponente(Aux.DSList.List[I]);
-                                                        Aux.EmProcesso := False;
-                                                      end;
-                                                    end).Start;
-                            end;
-    end
-    else begin
-      Aux.RProcedimento := procedure
-                           begin
-                             if Terminated
-                               then Abort;
-                             CreateAnonymousThread(procedure
-                                                   var
-                                                     I: Integer;
-                                                   begin
-                                                     QtdeProcAsync := QtdeProcAsync + 1;
-                                                     RProcedimento;
-                                                     QtdeProcAsync := QtdeProcAsync - 1;
-                                                     for I := 0 to Aux.DSList.Count - 1 do begin
-                                                       if Aux.EmConsulta
-                                                         then TAdoQuery(Aux.DSList.List[I].DataSet).Connection.CommitTrans
-                                                         else TAdoQuery(Aux.DSList.List[I].DataSet).Close;
-                                                       VincularComponente(Aux.DSList.List[I]);
-                                                       Aux.EmProcesso := False;
-                                                     end;
-                                                   end).Start;
-                           end;
-    end;
-  Aux.RestInterval := RestInterval;
-  Synchronize( procedure begin
-                 TimerId   := SetTimer(0, QtdeTimers, 0, @MyTimeout);
-                 Aux.ID    := TimerID;
-                 MyListProcWillTimer.Add(Aux);
-               end );// não async vai no main
-end;
-
-procedure TThreadMain.CancelarConsulta(ProcedimentoOrigem: String);
-var
-  I: Integer;
-  Procedimento : TRecordProcedure;
-begin
-  for I := 0 to FormMain.Thread1.MyListProcWillProcAssync.Count - 1 do
-  if FormMain.Thread1.MyListProcWillProcAssync.Items[I].NomeProcedimento = ProcedimentoOrigem then begin
-    if FormMain.Thread1.MyListProcWillProcAssync.Items[I].EmConsulta then begin
-      try
-        FormMain.FLock.Acquire;
-        Procedimento := FormMain.Thread1.MyListProcWillProcAssync.ExtractAt(I);
-        Procedimento.SQLList.DS.Enabled := False;
-        Procedimento.SQLList.Connection.RollbackTrans;
-      finally
-        Procedimento.EmConsulta := False;
-        FormMain.Thread1.MyListProcWillProcAssync.Insert(I, Procedimento);
-        FormMain.FLock.Release;
-      end;
-    end;
-  end;
-end;
-
-procedure TThreadMain.WMProcGenericoAssync(Msg: TMsg);
-var
-  Procedimento: TProc;
-  Aux: TRecordProcedure;
-begin
-  Aux := MyListProcAssync.First;
-  QtdeProcAsync := QtdeProcAsync + 1;
-  ID := ID + 1;
-  Aux.ID := ID;
-  MyListProcWillProcAssync.Add(Aux);
-  CreateAnonymousThread(
-    procedure
-    var
-      I, J : Integer;
-    begin
-      for I := 0 to Length(FormMain.Thread1.MyListProcWillProcAssync.List) do if FormMain.Thread1.MyListProcWillProcAssync.List[I].ID = ID  then break;
-      if Integer(Msg.wParam) = 0
-        then MyListProcWillProcAssync.List[I].Procedimento
-        else begin
-          Procedimento := FormMain.Thread1.MyListProcWillProcAssync.List[I].RProcedimento;
-          Procedimento;
-        end;
-      if Self.Finished
-        then exit;
-      QtdeProcAsync := QtdeProcAsync - 1;
-      for J := 0 to MyListProcWillProcAssync.List[I].DSList.Count - 1 do begin
-        FormMain.FLock.Acquire;
-        if MyListProcWillProcAssync.List[I].EmConsulta
-          then TAdoQuery(MyListProcWillProcAssync.List[I].DSList.List[J].DataSet).Connection.CommitTrans
-          else TAdoQuery(MyListProcWillProcAssync.List[I].DSList.List[J].DataSet).Close;
-        VincularComponente(MyListProcWillProcAssync.List[I].DSList.List[J]);
-        FormMain.FLock.Release;
-      end;
-      MyListProcWillProcAssync.Delete(I);
-    end).Start;
-    MyListProcAssync.Delete(0);
-end;
-
-function TThreadMain.NovaConexao(DataSourceReferencia: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;
-// é importante criar uma nova conexão ao acessar o banco pra não dar erro de ter duas consultas
-// retornando resultado ao mesmo tempo, e também para permitir o rollback sem afetar as outras consultas...
-var
-  RecordProcedureRetorno: TRecordProcedure;
-begin
-  Self.Synchronize(
-  Procedure
-  var
-    I : Integer;
-    Qry: TAdoQuery;
-    ConnectionReferencia: TADOConnection;
-    SQLList: TSQLList;
-  begin
-    FormMain.FLock.Acquire;
-    ID := ID + 1;
-    DataSourceReferencia.Enabled := False;
-    DesvincularComponente(DataSourceReferencia);
-    DataSourceReferencia.Enabled := True;
-    Qry := TAdoQuery(DataSourceReferencia.DataSet);
-    ConnectionReferencia := Qry.Connection;
-    RecordProcedureRetorno.SQLList.Connection                      := TADOConnection.Create(FormMain);
-    RecordProcedureRetorno.SQLList.Connection.ConnectionString     := ConnectionReferencia.ConnectionString;
-    RecordProcedureRetorno.SQLList.Connection.ConnectionTimeout    := ConnectionReferencia.ConnectionTimeout;
-    RecordProcedureRetorno.SQLList.Connection.ConnectOptions       := ConnectionReferencia.ConnectOptions;
-    RecordProcedureRetorno.SQLList.Connection.CursorLocation       := ConnectionReferencia.CursorLocation;
-    RecordProcedureRetorno.SQLList.Connection.DefaultDatabase      := ConnectionReferencia.DefaultDatabase;
-    RecordProcedureRetorno.SQLList.Connection.IsolationLevel       := ConnectionReferencia.IsolationLevel;
-    RecordProcedureRetorno.SQLList.Connection.KeepConnection       := ConnectionReferencia.KeepConnection;
-    RecordProcedureRetorno.SQLList.Connection.LoginPrompt          := ConnectionReferencia.LoginPrompt;
-    RecordProcedureRetorno.SQLList.Connection.Mode                 := ConnectionReferencia.Mode;
-    RecordProcedureRetorno.SQLList.Connection.Name                 := 'Thread'+IntToStr(ID)+IntToStr(Self.ThreadID)+ConnectionReferencia.Name;
-    RecordProcedureRetorno.SQLList.Connection.Provider             := ConnectionReferencia.Provider;
-    RecordProcedureRetorno.SQLList.Connection.Tag                  := ConnectionReferencia.Tag;
-    RecordProcedureRetorno.SQLList.Connection.Connected            := True;
-    RecordProcedureRetorno.SQLList.Qry                             := Qry;
-    RecordProcedureRetorno.SQLList.Qry.Connection                  := RecordProcedureRetorno.SQLList.Connection;
-    RecordProcedureRetorno.SQLList.DS                              := DataSourceReferencia;
-    RecordProcedureRetorno.SQLList.DS.DataSet                      := TDataSet(RecordProcedureRetorno.SQLList.Qry);
-    RecordProcedureRetorno.SQLList.DS.Enabled                      := True;
-    RecordProcedureRetorno.SQLList.Qry.Close;
-    RecordProcedureRetorno.SQLList.Connection.Connected            := True;
-    RecordProcedureRetorno.SQLList.Connection.BeginTrans;
-    for I := 0 to Length(FormMain.Thread1.MyListProcWillProcAssync.List)-1 do
-    if ProcedimentoOrigem = FormMain.Thread1.MyListProcWillProcAssync.List[I].NomeProcedimento
-      then begin
-            RecordProcedure                 := FormMain.Thread1.MyListProcWillProcAssync.ExtractAt(I);
-            RecordProcedure.DSList.Add(DataSourceReferencia);
-            RecordProcedure.SQLList         := RecordProcedureRetorno.SQLList;
-            RecordProcedure.EmConsulta      := True;
-            FormMain.Thread1.MyListProcWillProcAssync.Insert(I, RecordProcedure);
-      end;
-    FormMain.FLock.Release;
-  end);
-  Result := RecordProcedureRetorno;
-end;
-
-
-procedure TThreadMain.Kill;
-var
-  I: integer;
-begin
-  for I := 0 to MyListProcWillTimer.Count - 1 do KillTimer(0, MyListProcWillTimer.List[I].ID);
-  for I := 0 to MyListProcWillProcAssync.Count - 1 do CancelarConsulta(MyListProcWillProcAssync.List[I].NomeProcedimento);//Cancelando todas as consultas
-  FreeAndNil(FormMain.FLock);
-  if (EmProcesso) or (QtdeProcAsync <> 0)
-    then Destroy
-    else Terminate;
-end;
-
-procedure TThreadMain.DesvincularComponente(DS: TDataSource);
-var
-  i: integer;
-  Form: TForm;
-  DSAux : TDataSource;
-begin
-  Form := TForm(DS.Owner);
-  for i := 0 to (Form.ComponentCount - 1) do begin
-    if (Form.Components[i] is TDBGrid)  and (TDBGrid(Form.Components[i]).DataSource = DS)
-      then begin
-        ID := ID + 1;
-        DSAux      := TDataSource.Create(FormMain);
-        DSAux.Name := DS.Name+'INACTIVE'+IntToStr(ID);
-        FormMain.FLock.Acquire;
-        TDBGrid(Form.Components[i]).DataSource := DSAux;
-        FormMain.FLock.Release;
-      end
-      else
-    if (Form.Components[i] is TDBMemo)  and (TDBMemo(Form.Components[i]).DataSource = DS)
-      then begin
-        ID := ID + 1;
-        DSAux      := TDataSource.Create(FormMain);
-        DSAux.Name := DS.Name+'INACTIVE'+IntToStr(ID);
-        FormMain.FLock.Acquire;
-        TDBMemo(Form.Components[i]).DataSource := DSAux;
-        FormMain.FLock.Release;
-      end;
-  end;
-end;
-
-procedure TThreadMain.VincularComponente(DS: TDataSource);
-var
-  i: integer;
-  Form: TForm;
-  Qry:   TAdoQuery;
-begin
-  Qry:= TAdoQuery(DS.DataSet);
-  Form := TForm(Qry.Owner);
-  for i := 0 to (Form.ComponentCount - 1) do begin
-    if (Form.Components[i] is TDBGrid)  and (Copy(String(TDBGrid(Form.Components[i]).DataSource.Name),0,Pos('INACTIVE', String(TDBGrid(Form.Components[i]).DataSource.Name))-1) = DS.Name)
-      then begin
-        TDBGrid(Form.Components[i]).DataSource.Enabled := False;
-        Synchronize(Procedure begin TDBGrid(Form.Components[i]).DataSource := DS end);
-        TDBGrid(Form.Components[i]).DataSource.Enabled := True;
-      end
-      else
-    if (Form.Components[i] is TDBMemo)  and (Copy(String(TDBMemo(Form.Components[i]).DataSource.Name),0,Pos('INACTIVE', String(TDBMemo(Form.Components[i]).DataSource.Name))-1) = DS.Name)
-      then begin
-        TDBMemo(Form.Components[i]).DataSource.Enabled := False;
-        Synchronize(Procedure begin TDBMemo(Form.Components[i]).DataSource := DS end);
-        TDBMemo(Form.Components[i]).DataSource.Enabled := True;
-      end
-  end;
-end;
-
-procedure TThreadMain.SetRestInterval(RestInterval: Integer; ProcedimentoOrigem: String);
-var
-  I : Integer;
-  Procedimento: TRecordProcedure;
-begin
-  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem then begin
-     FormMain.FLock.Acquire;
-     Procedimento      := FormMain.Thread1.MyListProcWillTimer.ExtractAt(I);
-     Procedimento.RestInterval := RestInterval;
-     FormMain.Thread1.MyListProcWillTimer.Insert(I, Procedimento);
-     FormMain.FLock.Release;
-  end;
-end;
-
-function TThreadMain.GetRestInterval(ProcedimentoOrigem: String): Integer;
-var
-  I : Integer;
-begin
-  Result := -1;
-  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem
-    then Result := FormMain.Thread1.MyListProcWillTimer.List[I].RestInterval;
-end;
-
-procedure TThreadMain.StartTimer(ProcedimentoOrigem: String);
-var
-  I : Integer;
-begin
-  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem then begin
-    FormMain.Thread1.MyListProcWillTimer.List[I].Enabled := True;
-    if not FormMain.Thread1.MyListProcWillTimer.List[I].EmProcesso
-      then TimerId   := SetTimer(0, FormMain.Thread1.MyListProcWillTimer.List[I].Tipo, FormMain.Thread1.MyListProcWillTimer.List[I].RestInterval, @MyTimeout);
-    FormMain.Thread1.MyListProcWillTimer.List[I].ID := TimerId;
-  end;
-end;
-
-procedure TThreadMain.StopTimer(ProcedimentoOrigem: String);
-var
-  I : Integer;
-begin
-  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem
-    then FormMain.Thread1.MyListProcWillTimer.List[I].Enabled := False;
-end;
-
-procedure TThreadMain.AbortTimer(ProcedimentoOrigem: String);
-var
-  I : Integer;
-begin
-  for I := 0 to Length(FormMain.Thread1.MyListProcWillTimer.List) - 1 do if FormMain.Thread1.MyListProcWillTimer.List[I].NomeProcedimento = ProcedimentoOrigem
-    then KillTimer(0,FormMain.Thread1.MyListProcWillTimer.List[I].ID);
-end;
-
 // ------------------- MAIN -------------------- //
-
-procedure TFormMain.Button1Click(Sender: TObject);
-begin
-  Thread1.StopTimer('Contar');
-end;
-
-procedure TFormMain.Button2Click(Sender: TObject);
-begin
-  Thread1.StartTimer('Contar');
-end;
 
 procedure TFormMain.Button3Click(Sender: TObject);
 begin
-  Thread1.ProcedimentoGenericoAssync(Consulta,'Consulta');
-end;
-
-procedure TFormMain.Button4Click(Sender: TObject);
-begin
-  Thread1.CancelarConsulta('Consulta');
+  Query1.Cancelar;
+  Thread.ProcedimentoGenericoAssync(
+  procedure begin
+    Query1.Open('Button3Click',Thread, Button3, Procedure begin FormMain.Caption := 'asoajsasoj' end);
+  end,'Button3Click');
 end;
 
 procedure TFormMain.Button5Click(Sender: TObject);
 begin
-  Thread1.ProcedimentoGenericoAssync(
-  Procedure
-  begin
-    while true do begin
-      sleep(1);
-      if Thread1.Finished
-        then exit;
-      Thread1.Queue(
-      procedure
-      begin
-        FormMain.lbl1.Caption := IntToStr( StrToInt(FormMain.lbl1.Caption) + 10);
-      end);
-    end;
-  end);
+  Thread.ProcedimentoGenericoAssync(
+              Procedure
+              begin
+                while true do begin
+                  sleep(1);
+                  if Thread.Finished
+                    then exit;
+                  Thread.Synchronize(
+                  procedure
+                  begin
+                    FormMain.lbl1.Caption := IntToStr( StrToInt(FormMain.lbl1.Caption) + 10);
+                  end);
+                end;
+              end);
 end;
+
 procedure TFormMain.ComboBox1Change(Sender: TObject);
 begin
   TStyleManager.TrySetStyle(ComboBox1.Items[ComboBox1.ItemIndex]);
-end;
-procedure TFormMain.Button7Click(Sender: TObject);
-begin
-  Thread1.TimerAssync(100,
-  procedure
-  begin
-    if StrToInt(FormMain.lbl1.Caption) > 2000
-      then Thread1.Synchronize(procedure begin FormMain.lbl1.Caption := '0' end);
-    Thread1.SetRestInterval(Thread1.GetRestInterval('Contar')+10,'Contar');
-  end,'Contar');
-end;
-
-procedure TFormMain.Button7Click(Sender: TObject);
-begin
-  Thread1.TimerAssync(100,
-  procedure
-  begin
-    if StrToInt(FormMain.lbl1.Caption) > 2000
-      then Thread1.Synchronize(procedure begin FormMain.lbl1.Caption := '0' end);
-    Thread1.SetRestInterval(Thread1.GetRestInterval('Contar')+10,'Contar');
-  end,'Contar');
-end;
-
-procedure TFormMain.Consulta;
-var
-  RecordProcedure: TRecordProcedure;
-begin
-  try
-    RecordProcedure := Thread1.NovaConexao(DataSource1,'Consulta');
-    Button3.Visible := False;
-    RecordProcedure.SQLList.Qry.Open;
-  finally
-    Button3.Enabled := True;
-    Button3.Visible := True;
-  end;
-end;
-
-procedure TFormMain.FormCreate(Sender: TObject);
-begin
-  Thread1 := TThreadMain.Create(False);
-end;
-
-procedure TFormMain.FormDestroy(Sender: TObject);
-begin
-  Thread1.Kill;
 end;
 
 procedure TFormMain.FormShow(Sender: TObject);
@@ -689,13 +107,4 @@ begin
   end;
 end;
 
-procedure TFormMain.Synchronize(AThreadProc: TProc);
-begin
-  Thread1.Synchronize(Thread1,TThreadProcedure(AThreadProc));
-end;
-
-procedure TFormMain.Synchronize(AThreadProc: TProc; Thread: TThread);
-begin
-  Thread1.Synchronize(Thread,TThreadProcedure(AThreadProc));
-end;
 end.
