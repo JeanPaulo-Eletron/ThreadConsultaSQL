@@ -15,7 +15,7 @@ uses
     Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
     Dialogs, Db, Vcl.Grids, Vcl.DBGrids, Data.Win.ADODB, Vcl.StdCtrls,
     System.TypInfo, Generics.Collections, Vcl.ExtCtrls,
-    Vcl.DBCtrls, SyncObjs, Vcl.Themes, ThreadControler, Vcl.Buttons;
+    Vcl.DBCtrls, SyncObjs, Vcl.Themes, ADOQueryControler, Vcl.Buttons;
 
 const
     WM_OPEN                       = WM_USER + 1;
@@ -41,7 +41,6 @@ TFormMain = class(TForm)
     procedure Button5Click(Sender: TObject);
     procedure ComboBox1Change(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure FormCreate(Sender: TObject);
 private
 { Private declarations }
 public
@@ -85,12 +84,6 @@ end;
 procedure TFormMain.ComboBox1Change(Sender: TObject);
 begin
   TStyleManager.TrySetStyle(ComboBox1.Items[ComboBox1.ItemIndex]);
-end;
-
-procedure TFormMain.FormCreate(Sender: TObject);
-begin
-  inherited;
-  Thread.Start;
 end;
 
 procedure TFormMain.FormShow(Sender: TObject);
