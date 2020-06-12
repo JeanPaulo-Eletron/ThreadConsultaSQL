@@ -1,11 +1,12 @@
 3.0.X
   Call Back
-  Promices
   SetTimeOut(Unificação com o timer)
 3.1
 :: Implementação de Sockets ::
 :: Implementação de chamadas remotas ::
 ::: Estudar como já é feito com XML, RMI, RPC e DLL :::
+3.5.0
+  Promices
 >>>>>>> Possivelmente 4.0
 -- Incluido EncadeiamentoCondicionalMultiplo ( O anterior permitindo colocar mais de uma procedure a serem executadas assincronamente 
                                                se condição verdadeira ou falsa, porém ela espera todos os procedimentos associados aquela 
