@@ -1,22 +1,22 @@
-:: Corrigir timer para procedimentos muito grandes ::
-:: Unificar TProc e TProcedure ::
-:: Fazer o teste intensivamente ::
-:: Refazer não Assyncs nos mesmos procedimentos do Assync com um "IF" (para trabalhar com vários objetos diferentes em fila) ::
-3.0
+3.0.X
+  Call Back
+  SetTimeOut(Unificação com o timer)
+3.1
 :: Implementação de Sockets ::
 :: Implementação de chamadas remotas ::
 ::: Estudar como já é feito com XML, RMI, RPC e DLL :::
+3.5.0
+  Promices
 >>>>>>> Possivelmente 4.0
-Confere a condição cadastrada de tempos em tempos(em ambos os casos em paralelo), 
-                               se passar lança as procedures cadastradas em ordem(pelo método Subscribe).
--- Incluido Triggers(Com Quee quando executar, ou seja passa pelo form principal ao executar)
--- Incluido TriggersAssync(Executa em paralelo mesmo)
->>>>>>> Possivelmente 5.0
--- Incluido EncadeiamentoCondicionalUnitário ( Se ... Então Procedure1 Senão Procedure2 )
 -- Incluido EncadeiamentoCondicionalMultiplo ( O anterior permitindo colocar mais de uma procedure a serem executadas assincronamente 
                                                se condição verdadeira ou falsa, porém ela espera todos os procedimentos associados aquela 
                                                chamada acabarem antes de continuar, para passar mais de uma procedure por vez é usado
                                                um array ou list de Procedures)
+>>>>>>> Possivelmente 5.0
+Confere a condição cadastrada de tempos em tempos(em ambos os casos em paralelo), 
+                               se passar lança as procedures cadastradas em ordem(pelo método Subscribe).
+-- Incluido Triggers(Com Quee quando executar, ou seja passa pelo form principal ao executar)
+-- Incluido TriggersAssync(Executa em paralelo mesmo)
 -- Fazer repositório com a versão C#.
 >>>>>>> Possivelmente 6.0
 -- Fazer repositório com a versão Java.

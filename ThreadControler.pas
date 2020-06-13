@@ -24,7 +24,6 @@ const
 
 Type
     TProcedure        = Procedure of object;
-    TRProcedure       = reference to procedure;
     TStatus = class(TObject)
     public
       FEmConsulta: Boolean;
