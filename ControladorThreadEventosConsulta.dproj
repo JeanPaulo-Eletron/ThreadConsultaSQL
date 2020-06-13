@@ -108,11 +108,8 @@
             <Form>FormMain</Form>
             <FormType>dfm</FormType>
         </DCCReference>
-        <DCCReference Include="AdoQueryControler.pas">
-            <Form>Form</Form>
-            <FormType>dfm</FormType>
-        </DCCReference>
         <DCCReference Include="ThreadControler.pas"/>
+        <DCCReference Include="TimeoutControler.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -139,6 +136,12 @@
                 </Excluded_Packages>
             </Delphi.Personality>
             <Deployment Version="3">
+                <DeployFile LocalName="Win32\Debug\testee\ControladorThreadEventosConsulta.exe" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>ControladorThreadEventosConsulta.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
                 <DeployFile LocalName="Win32\Debug\testee\ControladorThreadEventosConsulta.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>ControladorThreadEventosConsulta.exe</RemoteName>

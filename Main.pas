@@ -6,32 +6,17 @@ uses
     Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms,
     Dialogs, Db, Vcl.Grids, Vcl.DBGrids, Data.Win.ADODB, Vcl.StdCtrls,
     System.TypInfo, Generics.Collections, Vcl.ExtCtrls,
-    Vcl.DBCtrls, SyncObjs, Vcl.Themes, ADOQueryControler, Vcl.Buttons;
-
-const
-    WM_OPEN                       = WM_USER + 1;
-    WM_PROCEDIMENTOGENERICOASSYNC = WM_USER + 2;
-    WM_TIMERTHREADASSYNC          = WM_USER + 3;
-    WM_TERMINATE                  = WM_USER + 4;
+    Vcl.DBCtrls, SyncObjs, Vcl.Themes, Vcl.Buttons,
+    TimeoutControler;
 type
 
 TFormMain = class(TForm)
-    Query1: TADOQuery;
-    ADOConnection1: TADOConnection;
-    DataSource1: TDataSource;
-    Button5: TButton;
-    lbl1: TLabel;
     ComboBox1: TComboBox;
     DBGrid1: TDBGrid;
-    Query1DepartmentID: TSmallintField;
-    Query1Name: TWideStringField;
-    Query1GroupName: TWideStringField;
-    Query1ModifiedDate: TDateTimeField;
-    Button3: TCheckBox;
-    procedure Button3Click(Sender: TObject);
-    procedure Button5Click(Sender: TObject);
+    Button1: TButton;
     procedure ComboBox1Change(Sender: TObject);
-    procedure FormShow(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
+    procedure Timer1;
 private
 { Private declarations }
 public
@@ -43,33 +28,13 @@ implementation
 
 {$R *.DFM}
 
+uses ThreadControler;
+
 // ------------------- MAIN -------------------- //
 
-procedure TFormMain.Button3Click(Sender: TObject);
+procedure TFormMain.Button1Click(Sender: TObject);
 begin
-  Query1.Cancelar;
-  Thread.ProcedimentoGenericoAssync(
-  procedure begin
-    Query1.Open('Button3Click',Thread, Button3, Procedure begin FormMain.Caption := 'asoajsasoj' end);
-  end,'Button3Click');
-end;
-
-procedure TFormMain.Button5Click(Sender: TObject);
-begin
-  Thread.ProcedimentoGenericoAssync(
-              Procedure
-              begin
-                while true do begin
-                  sleep(1);
-                  if Thread.Finished
-                    then exit;
-                  Thread.Synchronize(
-                  procedure
-                  begin
-                    FormMain.lbl1.Caption := IntToStr( StrToInt(FormMain.lbl1.Caption) + 10);
-                  end);
-                end;
-              end);
+  SetTimeOut(Timer1,1000)
 end;
 
 procedure TFormMain.ComboBox1Change(Sender: TObject);
@@ -77,20 +42,9 @@ begin
   TStyleManager.TrySetStyle(ComboBox1.Items[ComboBox1.ItemIndex]);
 end;
 
-procedure TFormMain.FormShow(Sender: TObject);
-var
-  s: String;
+procedure TFormMain.Timer1;
 begin
-  ComboBox1.Items.BeginUpdate;
-  try
-    ComboBox1.Items.Clear;
-    for s in TStyleManager.StyleNames do
-       ComboBox1.Items.Add(s);
-    ComboBox1.Sorted := True;
-    ComboBox1.ItemIndex := ComboBox1.Items.IndexOf(TStyleManager.ActiveStyle.Name);
-  finally
-    ComboBox1.Items.EndUpdate;
-  end;
+  ThreadControler.Infobox('Olá mundo!');
 end;
 
 end.
