@@ -16,7 +16,6 @@ TFormMain = class(TForm)
     Button1: TButton;
     procedure ComboBox1Change(Sender: TObject);
     procedure Button1Click(Sender: TObject);
-    procedure Timer1;
 private
 { Private declarations }
 public
@@ -33,18 +32,23 @@ uses ThreadControler;
 // ------------------- MAIN -------------------- //
 
 procedure TFormMain.Button1Click(Sender: TObject);
+var
+  _IdEvent : Integer;
+  Timer: TTimeOut;
 begin
-  SetTimeOut(Timer1,1000)
+  _IdEvent := SetTimeOut(
+                Procedure
+                begin
+                  ThreadControler.Infobox('Olá mundo!');
+                  Timer.Config.LoopTimer    := True;
+                  Timer.Config.RestInterval := Timer.Config.RestInterval + 1000;
+                end, 0);
+  Timer := TimeOut.List[Localizar(_IdEvent)];
 end;
 
 procedure TFormMain.ComboBox1Change(Sender: TObject);
 begin
   TStyleManager.TrySetStyle(ComboBox1.Items[ComboBox1.ItemIndex]);
-end;
-
-procedure TFormMain.Timer1;
-begin
-  ThreadControler.Infobox('Olá mundo!');
 end;
 
 end.
