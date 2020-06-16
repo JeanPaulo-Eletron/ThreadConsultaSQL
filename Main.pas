@@ -40,8 +40,8 @@ begin
                 Procedure
                 begin
                   ThreadControler.Infobox('Olá mundo!');
-                  Timer.Config.LoopTimer    := True;
-                  Timer.Config.RestInterval := Timer.Config.RestInterval + 1000;
+                  Timer.LoopTimer    := True;
+                  Timer.RestInterval := Timer.RestInterval + 1000;
                 end, 0);
   Timer := TimeOut.List[Localizar(_IdEvent)];
 end;
