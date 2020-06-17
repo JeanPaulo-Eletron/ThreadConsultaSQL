@@ -2,7 +2,7 @@ unit TimeoutControler;
 
 interface
 uses
-    Windows, SysUtils, Graphics, Generics.Collections, Messages, Forms;
+    Windows, SysUtils, Generics.Collections;
 Type
   TProcedure        = Procedure of object;
   TTimeOut  = Class(TObject)
@@ -12,13 +12,12 @@ Type
     IDEvent : Integer;
     Tag     : Integer;
   End;
-  Function SetTimeOut(CallBack: TProcedure; RestInterval: Integer; LoopTimer: Boolean = False):Integer;overload;
-  Function SetTimeOut(CallBack: TProc; RestInterval: Integer; LoopTimer: Boolean = False):Integer;overload;
+  Function SetTimeOut(CallBack: TProcedure; RestInterval: Integer; LoopTimer: Boolean = True):TTimeOut;overload;
+  Function SetTimeOut(CallBack: TProc; RestInterval: Integer; LoopTimer: Boolean = True):TTimeOut;overload;
   Function Localizar(idEvent:UINT):Integer;
 var
   TimeOut  : TList<TTimeOut>;
   QtdeTimers : Integer;
-  Timerid: UINT;
 
 implementation
 
@@ -37,7 +36,7 @@ begin
     then TimeOut.List[idxTimer].IDEvent := SetTimer(0, IDEvent, TimeOut.List[idxTimer].RestInterval, @MyTimeOut);
 end;
 
-Function SetTimeOut(CallBack: TProc; RestInterval: Integer; LoopTimer: Boolean = False):Integer;overload;
+Function SetTimeOut(CallBack: TProc; RestInterval: Integer; LoopTimer: Boolean = True):TTimeOut;overload;
 var Timer : TTimeOut;
 begin
   if TimeOut = nil
@@ -50,12 +49,12 @@ begin
   Timer.Tag          := 0;
   Timer.IDEvent := SetTimer(0, QtdeTimers, RestInterval, @MyTimeOut);
   TimeOut.Add(Timer);
-  Result := Timer.IDEvent;
+  Result := Timer;
 end;
 
-function SetTimeOut(CallBack: TProcedure; RestInterval: Integer; LoopTimer: Boolean = False):Integer;
+function SetTimeOut(CallBack: TProcedure; RestInterval: Integer; LoopTimer: Boolean = True):TTimeOut;
 begin
-  SetTimeOut(procedure begin Callback end, RestInterval, LoopTimer);
+  Result := SetTimeOut(procedure begin Callback end, RestInterval, LoopTimer);
 end;
 
 Function Localizar(idEvent:UINT):Integer;
