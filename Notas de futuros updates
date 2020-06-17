@@ -19,8 +19,10 @@ Confere a condição cadastrada de tempos em tempos(em ambos os casos em paralel
 -- Incluido TriggersAssync(Executa em paralelo mesmo)
 -- Fazer repositório com a versão C#.
 >>>>>>> Possivelmente 6.0
+-- Incluido Testes Automatizados
 -- Fazer repositório com a versão Java.
 >>>>>>> Possivelmente 7.0
+-- Incluido Testes Automatizados Parcialmente Assíncronos (por coerção);
 -- Fazer repositório com a versão Phyton.
 >>>>>>> Possivelmente 8.0
 -- Fazer repositório com a versão C++.
