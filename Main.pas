@@ -32,18 +32,21 @@ uses ThreadControler;
 // ------------------- MAIN -------------------- //
 
 procedure TFormMain.Button1Click(Sender: TObject);
-var
-  _IdEvent : Integer;
-  Timer: TTimeOut;
+var Timer1, Timer2: TTimeOut;
 begin
-  _IdEvent := SetTimeOut(
+  Timer1 := SetTimeOut(
                 Procedure
                 begin
                   ThreadControler.Infobox('Olá mundo!');
-                  Timer.LoopTimer    := True;
-                  Timer.RestInterval := Timer.RestInterval + 1000;
-                end, 0);
-  Timer := TimeOut.List[Localizar(_IdEvent)];
+                  Timer1.LoopTimer    := True;
+                  Timer1.RestInterval := Timer1.RestInterval + 1000;
+                end, 1000);
+  Timer2 := SetTimeOut(
+                Procedure
+                begin
+                  ThreadControler.Infobox('ANCAPSTÂO!');
+                  Timer2.LoopTimer    := True;
+                end, 1000);
 end;
 
 procedure TFormMain.ComboBox1Change(Sender: TObject);
