@@ -34,18 +34,16 @@ uses ThreadControler;
 procedure TFormMain.Button1Click(Sender: TObject);
 var Timer1, Timer2: TTimeOut;
 begin
-  Timer1 := SetTimeOut(
+  Timer1 := SetInterval(
                 Procedure
                 begin
                   ThreadControler.Infobox('Olá mundo!');
-                  Timer1.LoopTimer    := True;
                   Timer1.RestInterval := Timer1.RestInterval + 1000;
                 end, 1000);
   Timer2 := SetTimeOut(
                 Procedure
                 begin
                   ThreadControler.Infobox('ANCAPSTÂO!');
-                  Timer2.LoopTimer    := True;
                 end, 1000);
 end;
 
