@@ -74,7 +74,6 @@ protected
     NomeProcedimento : TList<String>;
     procedure Execute; override;
 public
-    RestInterval : Integer;
     EmProcesso: boolean;
     RecordProcedure:  TRecordProcedure;
     Query: TAdoQuery;
@@ -101,7 +100,6 @@ implementation
 
 procedure TThread.Execute;
 begin
-  RestInterval := 1;
   FreeOnTerminate := self.Finished;
   if FilaProcAssyncEmExecucao = nil
     then FilaProcAssyncEmExecucao := TList<TRecordProcedure>.Create;
@@ -116,11 +114,11 @@ end;
 procedure TThread.Dispatcher;
 var ThreadAntiga : TThread;
 begin
-  Sleep(RestInterval);
+  Sleep(1);
   if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then begin
     if Integer(Cores.dwNumberOfProcessors) > 2 // 1 núcleo e 2 threads ou inferior
-      then while QtdeProcAsync >= (Integer(Cores.dwNumberOfProcessors) - 1) do sleep(RestInterval) //Otimização para hardware não sobrecarregar de processos pessados.
-      else while QtdeProcAsync > 2 do sleep(RestInterval); // ele só aceita realizar dois processos assyncronos por vez
+      then while QtdeProcAsync >= (Integer(Cores.dwNumberOfProcessors) - 1) do sleep(1) //Otimização para hardware não sobrecarregar de processos pessados.
+      else while QtdeProcAsync > 2 do sleep(1); // ele só aceita realizar dois processos assyncronos por vez
     EmProcesso := true;
     ID := ID + 1;
     try
@@ -242,7 +240,7 @@ begin
         QtdeProcAsync := QtdeProcAsync - 1;
       End;
     end).Start;
-  while EmProcesso do Sleep(RestInterval);
+  while EmProcesso do Sleep(1);
 end;
 
 function TThread.NovaConexao(DataSourceReferencia: TDataSource; ProcedimentoOrigem: String):TRecordProcedure;
@@ -294,7 +292,7 @@ var
   I: integer;
 begin
   FreeAndNil(FLock);
-  while QtdeProcAsync > 0 do sleep(RestInterval);
+  while QtdeProcAsync > 0 do sleep(1);
   Terminate;
   WaitFor;
   Free;

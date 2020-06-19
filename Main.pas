@@ -7,9 +7,8 @@ uses
     Dialogs, Db, Vcl.Grids, Vcl.DBGrids, Data.Win.ADODB, Vcl.StdCtrls,
     System.TypInfo, Generics.Collections, Vcl.ExtCtrls,
     Vcl.DBCtrls, SyncObjs, Vcl.Themes, Vcl.Buttons,
-    TimeoutControler;
+    TimeoutControler, Registry, RegistroControler;
 type
-
 TFormMain = class(TForm)
     ComboBox1: TComboBox;
     DBGrid1: TDBGrid;
@@ -33,18 +32,19 @@ uses ThreadControler;
 
 procedure TFormMain.Button1Click(Sender: TObject);
 var Timer1, Timer2: TTimeOut;
+    Mensagem: String;
 begin
-  Timer1 := SetInterval(
+  Timer1 := SetTimeOut(
                 Procedure
                 begin
-                  ThreadControler.Infobox('Olá mundo!');
+                  AssyncControler.Synchronize(procedure begin ThreadControler.Infobox('Olá mundo!') end);
                   Timer1.RestInterval := Timer1.RestInterval + 1000;
-                end, 1000);
-  Timer2 := SetTimeOut(
-                Procedure
-                begin
-                  ThreadControler.Infobox('ANCAPSTÂO!');
-                end, 1000);
+                end, 1000,False, True,True);
+//  Timer2 := SetTimeOut(
+//                Procedure
+//                begin
+//                  ThreadControler.Infobox('ANCAPSTÂO!');
+//                end, 1000);
 end;
 
 procedure TFormMain.ComboBox1Change(Sender: TObject);
