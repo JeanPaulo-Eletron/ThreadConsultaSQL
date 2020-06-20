@@ -21,46 +21,22 @@ object FormMain: TFormMain
     Text = 'ComboBox1'
     OnChange = ComboBox1Change
   end
-  object DBGrid1: TDBGrid
-    Left = 0
-    Top = 86
-    Width = 729
-    Height = 259
-    TabOrder = 1
-    TitleFont.Charset = DEFAULT_CHARSET
-    TitleFont.Color = clWindowText
-    TitleFont.Height = -11
-    TitleFont.Name = 'Tahoma'
-    TitleFont.Style = []
-    Columns = <
-      item
-        Expanded = False
-        FieldName = 'DepartmentID'
-        Visible = True
-      end
-      item
-        Expanded = False
-        FieldName = 'GroupName'
-        Visible = True
-      end
-      item
-        Expanded = False
-        FieldName = 'ModifiedDate'
-        Visible = True
-      end
-      item
-        Expanded = False
-        FieldName = 'Name'
-        Visible = True
-      end>
-  end
   object Button1: TButton
-    Left = 213
-    Top = 39
+    Left = 221
+    Top = 6
     Width = 115
     Height = 25
     Caption = 'Setar Timer'
-    TabOrder = 2
+    TabOrder = 1
     OnClick = Button1Click
+  end
+  object Memo1: TMemo
+    Left = 48
+    Top = 56
+    Width = 657
+    Height = 273
+    Lines.Strings = (
+      'Memo1')
+    TabOrder = 2
   end
 end

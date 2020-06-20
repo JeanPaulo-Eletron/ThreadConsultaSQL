@@ -11,8 +11,8 @@ uses
 type
 TFormMain = class(TForm)
     ComboBox1: TComboBox;
-    DBGrid1: TDBGrid;
     Button1: TButton;
+    Memo1: TMemo;
     procedure ComboBox1Change(Sender: TObject);
     procedure Button1Click(Sender: TObject);
 private
@@ -38,7 +38,11 @@ begin
                 Procedure
                 begin
                   AssyncControler.Synchronize(procedure begin ThreadControler.Infobox('Olá mundo!') end);
-                  Timer1.RestInterval := Timer1.RestInterval + 1000;
+                end, 1000,False, True,True);
+  Timer2 := SetTimeOut(
+                Procedure
+                begin
+                  while true do Sleep(1);
                 end, 1000,False, True,True);
 //  Timer2 := SetTimeOut(
 //                Procedure

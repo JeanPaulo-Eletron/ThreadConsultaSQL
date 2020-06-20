@@ -54,7 +54,11 @@ begin
   _CallBack := _TimeOut.Callback;
   if not _TimeOut.Assync
     then _CallBack
-    else AssyncControler.JogarProcedureNaFilaAssyncrona(_CallBack);
+    else begin
+      if (AssyncControler = nil)
+        then AssyncControler := TAssyncControler.Create;
+      AssyncControler.JogarProcedureNaFilaAssyncrona(_CallBack);
+    end;
   if (_TimeOut.LoopTimer)
     then _TimeOut.IDEvent := SetTimer(0, IDEvent, _TimeOut.RestInterval, @MyTimeOut)
     else begin
@@ -71,11 +75,10 @@ var Timer : TTimeOut;
 begin
   if TimeOut = nil
     then TimeOut := TList<TTimeOut>.Create;
-
-  QtdeTimers := QtdeTimers + 1;
-  Timer  := TTimeOut.Create;
   if (Assync) and (AssyncControler = nil)
     then AssyncControler := TAssyncControler.Create;
+  QtdeTimers := QtdeTimers + 1;
+  Timer  := TTimeOut.Create;
 
   Timer.Callback        := CallBack;
   Timer.RestInterval    := RestInterval;
@@ -116,7 +119,6 @@ procedure TAssyncControler.Execute;
 begin
   FreeOnTerminate := not self.Finished;
   GetSystemInfo(Cores);
-  GravaReg('DelphiRegControlers','QtdeProcAsync','0');
   while not Terminated do begin
     Dispatcher;
   end;
@@ -129,22 +131,34 @@ begin
   Sleep(1);
   if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then begin
     if Integer(Cores.dwNumberOfProcessors) > 2 // 1 núcleo e 2 threads ou inferior
-      then while StrToInt(LerReg('DelphiRegControlers','QtdeProcAsync','0')) >= (Integer(Cores.dwNumberOfProcessors) - 1) do sleep(1) //Otimização para hardware não sobrecarregar de processos pessados.
-      else while StrToInt(LerReg('DelphiRegControlers','QtdeProcAsync','0')) > 2 do sleep(1); // ele só aceita realizar dois processos assyncronos por vez
+      then while LerCfg('../','QtdeProcAsync') >= (Integer(Cores.dwNumberOfProcessors) - 1) do sleep(1) //Otimização para hardware não sobrecarregar de processos pessados.
+      else while LerCfg('../','QtdeProcAsync') > 2 do sleep(1); // ele só aceita realizar dois processos assyncronos por vez
     try
       try
         case Msg.Message of
           WM_PROCEDIMENTOGENERICOASSYNC: begin
-                                           GravaReg('DelphiRegControlers','QtdeProcAsync',IntToStr(StrToInt(LerReg('DelphiRegControlers','QtdeProcAsync','0')) + 1));
-                                           CallBack := FilaDeProcedures.ExtractAt(0);
-                                           CallBack;
-                                           GravaReg('DelphiRegControlers','QtdeProcAsync',IntToStr(StrToInt(LerReg('DelphiRegControlers','QtdeProcAsync','0')) - 1));
-                                           if FilaDeProcedures.Count = 0 then begin
-                                             AssyncControler  := nil;
-                                             FilaDeProcedures.Free;
-                                             FilaDeProcedures := nil;
-                                             Terminate;
-                                           end;
+                                           AssyncControler.CreateAnonymousThread(
+                                             procedure
+                                             begin
+                                               AssyncControler.Synchronize(
+                                                 procedure
+                                                 begin
+                                                   GravaCfg('../','QtdeProcAsync',LerCfg('../','QtdeProcAsync') + 1);
+                                                 end);
+                                               CallBack := FilaDeProcedures.ExtractAt(0);
+                                               CallBack;
+                                               AssyncControler.Synchronize(
+                                                 procedure
+                                                 begin
+                                                   GravaCfg('../','QtdeProcAsync',LerCfg('../','QtdeProcAsync') - 1);
+                                                 end);
+                                               if FilaDeProcedures.Count = 0 then begin
+                                                 AssyncControler  := nil;
+                                                 FilaDeProcedures.Free;
+                                                 FilaDeProcedures := nil;
+                                                 Terminate;
+                                               end;
+                                             end).Start;
                                          end;
           WM_TERMINATE:                  Terminate;
         end;
