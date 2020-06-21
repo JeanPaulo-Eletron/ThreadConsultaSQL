@@ -20,13 +20,13 @@ Confere a condição cadastrada de tempos em tempos(em ambos os casos em paralel
 -- Incluido Testes Automatizados Parcialmente Assíncronos (por coerção);
 -- Fazer repositório com a versão Java.
 >>>>>>> Possivelmente 7.0
--[ ] Fazer um banco  de dados relacional em disco monothread.
--[ ] Fazer um banco de dados relacional em disco Multi-Thread
+-[] Fazer um banco  de dados relacional em disco monothread.
+-[] Fazer um banco de dados relacional em disco Multi-Thread
 -- Fazer repositório com a versão Phyton.
 >>>>>>> Possivelmente 8.0
 -- Fazer repositório com a versão C++.
--[ ] Fazer um banco de dados relacional em memória e disco Multi-Thread (com otimização I.A)
--[ ] Fazer um banco de dados multiparadigma distribuído com o último banco como base.
+-[] Fazer um banco de dados relacional em memória e disco Multi-Thread (com otimização I.A)
+-[] Fazer um banco de dados multiparadigma distribuído com o último banco como base.
 >>>>>>> Possivelmente 9.0
 -- Fazer repositório com a versão JavaScript, TypeScript ou PHP(ou todas).
 >>>>>>> Possivelmente 10.0
