@@ -6,7 +6,9 @@ uses
   Vcl.Themes,
   Vcl.Styles,
   ThreadControler in 'ThreadControler.pas',
-  TimeoutControler in 'TimeoutControler.pas';
+  TimeoutControler in 'TimeoutControler.pas',
+  UAssyncControler in 'UAssyncControler.pas',
+  RegistroControler in 'RegistroControler.pas';
 
 {$R *.res}
 

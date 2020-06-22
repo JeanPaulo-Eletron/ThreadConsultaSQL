@@ -2,24 +2,8 @@ unit TimeoutControler;
 
 interface
 uses
-    Windows, SysUtils, Generics.Collections, RegistroControler, SyncObjs,  Winapi.Messages, Classes;
-const
-    WM_PROCEDIMENTOGENERICOASSYNC = WM_USER + 1;
-    WM_TERMINATE                  = WM_USER + 2;
+    Windows, SysUtils, Generics.Collections, RegistroControler, SyncObjs,  Winapi.Messages, Classes, UAssyncControler;
 Type
-  TAssyncControler = class(TThread)
-  private
-    Cores : TSystemInfo;
-    FilaDeProcedures: TList<TProc>;
-    Msg : TMsg;
-    procedure Dispatcher;
-  protected
-    procedure Execute; override;
-  public
-    procedure JogarProcedureNaFilaAssyncrona(CallBack: TProc);
-    procedure Synchronize(AMethod: TThreadMethod); overload; inline;
-    procedure Synchronize(AThreadProc: TThreadProcedure); overload; inline;
-  end;
   TProcedure        = Procedure of object;
   TTimeOut  = Class(TObject)
     Callback : TProc;
@@ -39,7 +23,6 @@ var
   TimeOut  : TList<TTimeOut>;
   QtdeTimers : Integer;
   AssyncControler: TAssyncControler;
-
 implementation
 
 procedure MyTimeout( hwnd: HWND; uMsg: UINT;idEvent: UINT ; dwTime : DWORD);
@@ -56,7 +39,7 @@ begin
     then _CallBack
     else begin
       if (AssyncControler = nil)
-        then AssyncControler := TAssyncControler.Create;
+        then AssyncControler := TAssyncControler.Create(False);
       AssyncControler.JogarProcedureNaFilaAssyncrona(_CallBack);
     end;
   if (_TimeOut.LoopTimer)
@@ -79,7 +62,6 @@ begin
     then AssyncControler := TAssyncControler.Create;
   QtdeTimers := QtdeTimers + 1;
   Timer  := TTimeOut.Create;
-
   Timer.Callback        := CallBack;
   Timer.RestInterval    := RestInterval;
   Timer.LoopTimer       := LoopTimer;
@@ -112,80 +94,6 @@ begin
   for I := 0 to TimeOut.Count - 1 do
     if TimeOut.List[I].IDEvent = idEvent then break;
   Result := I;
-end;
-
-// Thread para execução assyncrona
-procedure TAssyncControler.Execute;
-begin
-  FreeOnTerminate := not self.Finished;
-  GetSystemInfo(Cores);
-  while not Terminated do begin
-    Dispatcher;
-  end;
-end;
-
-procedure TAssyncControler.Dispatcher;
-var ThreadAntiga : TThread;
-    CallBack: TProc;
-begin
-  Sleep(1);
-  if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then begin
-    if Integer(Cores.dwNumberOfProcessors) > 2 // 1 núcleo e 2 threads ou inferior
-      then while LerCfg('../','QtdeProcAsync') >= (Integer(Cores.dwNumberOfProcessors) - 1) do sleep(1) //Otimização para hardware não sobrecarregar de processos pessados.
-      else while LerCfg('../','QtdeProcAsync') > 2 do sleep(1); // ele só aceita realizar dois processos assyncronos por vez
-    try
-      try
-        case Msg.Message of
-          WM_PROCEDIMENTOGENERICOASSYNC: begin
-                                           AssyncControler.CreateAnonymousThread(
-                                             procedure
-                                             begin
-                                               AssyncControler.Synchronize(
-                                                 procedure
-                                                 begin
-                                                   GravaCfg('../','QtdeProcAsync',LerCfg('../','QtdeProcAsync') + 1);
-                                                 end);
-                                               CallBack := FilaDeProcedures.ExtractAt(0);
-                                               CallBack;
-                                               AssyncControler.Synchronize(
-                                                 procedure
-                                                 begin
-                                                   GravaCfg('../','QtdeProcAsync',LerCfg('../','QtdeProcAsync') - 1);
-                                                 end);
-                                               if FilaDeProcedures.Count = 0 then begin
-                                                 AssyncControler  := nil;
-                                                 FilaDeProcedures.Free;
-                                                 FilaDeProcedures := nil;
-                                                 Terminate;
-                                               end;
-                                             end).Start;
-                                         end;
-          WM_TERMINATE:                  Terminate;
-        end;
-      finally
-        PeekMessage(Msg, 0, 0, 0, PM_REMOVE);
-      end;
-    except
-      Self.Terminate;
-    end;
-  end
-end;
-procedure TAssyncControler.JogarProcedureNaFilaAssyncrona(CallBack: TProc);
-begin
-  if FilaDeProcedures = nil
-    then FilaDeProcedures := TList<TProc>.Create;
-  FilaDeProcedures.Add(CallBack);
-  PostThreadMessage(ThreadID, WM_PROCEDIMENTOGENERICOASSYNC, 0, 0);
-end;
-
-procedure TAssyncControler.Synchronize(AMethod: TThreadMethod);
-begin
-  Synchronize(Self, AMethod);
-end;
-
-procedure TAssyncControler.Synchronize(AThreadProc: TThreadProcedure);
-begin
-  Synchronize(Self, AThreadProc);
 end;
 
 end.
