@@ -40,16 +40,16 @@ end;
 
 procedure TAssyncControler.TriggerOciosidade;
 begin
-//  CreateAnonymousThread(
-//  Procedure Begin
-//    while true do begin
-//      Sleep(1000);//Confira de 1 em 1 segundo se há trabalho para ser feito, se não há então termine
-//      if Registro.QtdeProcAsync = 0 then begin
-//        Terminate;
-//        break;
-//      end;
-//    end;
-//  end).Start;
+  CreateAnonymousThread(
+  Procedure Begin
+    while true do begin
+      Sleep(1);//Confira de 1 em 1 segundo se há trabalho para ser feito, se não há então termine
+      if (Registro.QtdeProcAsync + FilaDeProcedures.Count) = 0 then begin
+        Terminate;
+        break;
+      end;
+    end;
+  end).Start;
 end;
 
 Constructor TAssyncControler.Create(CreateSuspended: Boolean = false);
@@ -69,6 +69,7 @@ begin
   Registro.Lock    := nil;
   Registro.Free;
   Registro         := nil;
+  AssyncControler  := nil;
 end;
 
 procedure TAssyncControler.Dispatcher;
@@ -101,7 +102,7 @@ begin
     except
       Self.Terminate;
     end;
-  end
+  end;
 end;
 procedure TAssyncControler.JogarProcedureNaFilaAssyncrona(CallBack: TProc);
 begin

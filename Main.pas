@@ -37,13 +37,13 @@ begin
   Timer1 := SetTimeOut(
                 Procedure
                 begin
-                  AssyncControler.Synchronize(procedure begin ThreadControler.Infobox('Olá mundo!') end);
+                  ThreadControler.Infobox('Olá mundo!');
                 end, 1000,False, True,True);
-  Timer2 := SetTimeOut(
-                Procedure
-                begin
-                  while true do Sleep(1);
-                end, 1000,False, True,True);
+//  Timer2 := SetTimeOut(
+//                Procedure
+//                begin
+//                  while true do Sleep(1);
+//                end, 1000,False, True,True);
 //  Timer2 := SetTimeOut(
 //                Procedure
 //                begin

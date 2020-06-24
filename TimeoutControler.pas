@@ -22,7 +22,6 @@ Type
 var
   TimeOut  : TList<TTimeOut>;
   QtdeTimers : Integer;
-  AssyncControler: TAssyncControler;
 implementation
 
 procedure MyTimeout( hwnd: HWND; uMsg: UINT;idEvent: UINT ; dwTime : DWORD);
